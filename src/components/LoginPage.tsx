@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useSession } from '../context/AuthContext';
 import { MOCK_USERS } from '../data/mockData';
 
@@ -7,16 +7,17 @@ export const LoginPage: React.FC = () => {
   const { signIn } = useSession();
   const [email, setEmail] = useState('alex.mercer@acme-jira.io');
   const [password, setPassword] = useState('••••••••••••');
-  const [selectedUserId, setSelectedUserId] = useState(MOCK_USERS[0].id);
+  const [error, setError] = useState('');
+
+  const singleUser = MOCK_USERS[0]; // Alex Mercer
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    signIn(selectedUserId);
-  };
-
-  const handleQuickLogin = (userId: string) => {
-    setSelectedUserId(userId);
-    signIn(userId);
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter your email and password');
+      return;
+    }
+    signIn(singleUser.id);
   };
 
   return (
@@ -36,11 +37,33 @@ export const LoginPage: React.FC = () => {
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl p-8 shadow-2xl border border-blue-100 text-[#172B4D]">
+          {/* User Avatar Badge */}
+          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-6">
+            <img
+              src={singleUser.avatar}
+              alt={singleUser.name}
+              className="w-10 h-10 rounded-full object-cover border-2 border-blue-500 shadow-sm"
+            />
+            <div>
+              <p className="text-xs font-bold text-[#172B4D]">{singleUser.name}</p>
+              <p className="text-[11px] text-[#5E6C84]">{singleUser.role}</p>
+            </div>
+            <span className="ml-auto bg-blue-100 text-[#0052CC] text-[10px] font-bold px-2 py-0.5 rounded-full">
+              Primary Account
+            </span>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-600">
+                {error}
+              </div>
+            )}
+
             {/* Email Input */}
             <div>
               <label className="block text-xs font-bold text-[#5E6C84] uppercase tracking-wider mb-1">
-                Work Email Address
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-[#5E6C84] absolute left-3 top-3 pointer-events-none" />
@@ -67,7 +90,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter password"
                   className="w-full bg-slate-50 border border-[#DFE1E6] rounded-lg pl-9 pr-3 py-2.5 text-xs text-[#172B4D] font-medium outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-blue-100 transition"
                 />
               </div>
@@ -78,53 +101,20 @@ export const LoginPage: React.FC = () => {
               type="submit"
               className="w-full py-2.5 rounded-lg bg-[#0052CC] hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition transform active:scale-98"
             >
-              <span>Log in to Jira</span>
+              <span>Log in to Jira Account</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          <div className="relative my-6 text-center">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#DFE1E6]" />
-            </div>
-            <span className="relative bg-white px-3 text-[10px] font-bold text-[#5E6C84] uppercase tracking-wider">
-              Or Select Demo Team Persona
-            </span>
-          </div>
-
-          {/* Demo User Selection Cards */}
-          <div className="space-y-2">
-            {MOCK_USERS.map((usr) => (
-              <button
-                key={usr.id}
-                type="button"
-                onClick={() => handleQuickLogin(usr.id)}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-[#DFE1E6] hover:border-[#0052CC] hover:bg-blue-50/60 transition group text-left"
-              >
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src={usr.avatar}
-                    alt={usr.name}
-                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                  />
-                  <div>
-                    <p className="text-xs font-bold text-[#172B4D] group-hover:text-[#0052CC] transition">
-                      {usr.name}
-                    </p>
-                    <p className="text-[10px] text-[#5E6C84]">{usr.role}</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-bold text-[#0052CC] opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
-                  Log in <UserCheck className="w-3.5 h-3.5" />
-                </span>
-              </button>
-            ))}
+          <div className="mt-6 pt-4 border-t border-[#DFE1E6] flex items-center justify-center gap-1.5 text-[11px] text-[#5E6C84]">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Single User Authenticated Account</span>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-[11px] text-blue-200 mt-6">
-          Atlassian Jira Software Workspace &bull; Secure Authentication Session
+          Atlassian Jira Software Workspace &bull; Single Person Account
         </p>
       </div>
     </div>

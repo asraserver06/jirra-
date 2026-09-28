@@ -8,6 +8,7 @@ import {
   LogOut,
   LogIn,
   User as UserIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import { useSession } from '../context/AuthContext';
 
@@ -22,7 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   searchQuery,
   onSearchChange,
 }) => {
-  const { session, signIn, signOut, switchUser, availableUsers } = useSession();
+  const { session, signIn, signOut } = useSession();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const currentUser = session.user;
@@ -73,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         />
       </div>
 
-      {/* Right: Notifications, Help, User Profile & Sign Out */}
+      {/* Right: Notifications, Help, Single User Profile & Sign Out */}
       <div className="flex items-center gap-2">
         <button className="p-1.5 hover:bg-blue-800 rounded-full text-blue-200 transition relative">
           <Bell className="w-4 h-4" />
@@ -98,34 +99,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
             </button>
 
-            {/* User Dropdown */}
+            {/* Single User Dropdown Menu */}
             {showUserDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-white text-slate-800 border border-slate-200 rounded-lg shadow-xl p-2 z-50 animate-fadeIn">
-                <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signed In Account</p>
-                  <p className="text-xs font-bold text-slate-900">{currentUser.name}</p>
-                  <p className="text-[11px] text-blue-600 font-medium">{currentUser.role}</p>
+              <div className="absolute right-0 mt-2 w-56 bg-white text-slate-800 border border-slate-200 rounded-lg shadow-xl p-2 z-50 animate-fadeIn">
+                <div className="px-3 py-2 border-b border-slate-100 mb-1 flex items-center gap-2.5">
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                  />
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">{currentUser.name}</p>
+                    <p className="text-[10px] text-blue-600 font-medium">{currentUser.role.split('/')[0]}</p>
+                  </div>
                 </div>
 
-                <p className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Switch Account:</p>
-                {availableUsers.map((usr) => (
-                  <button
-                    key={usr.id}
-                    onClick={() => {
-                      switchUser(usr.id);
-                      setShowUserDropdown(false);
-                    }}
-                    className={`w-full flex items-center gap-2 p-2 rounded-md text-left transition ${
-                      usr.id === currentUser.id ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <img src={usr.avatar} alt={usr.name} className="w-5 h-5 rounded-full object-cover" />
-                    <div className="truncate text-xs">
-                      <p className="leading-tight">{usr.name}</p>
-                      <p className="text-[10px] text-slate-500">{usr.role.split('/')[0]}</p>
-                    </div>
-                  </button>
-                ))}
+                <div className="px-3 py-1.5 text-[11px] text-[#5E6C84] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Authenticated Account</span>
+                </div>
 
                 <div className="border-t border-slate-100 pt-1 mt-1">
                   <button
