@@ -1,0 +1,185 @@
+import React from 'react';
+import {
+  ChevronUp,
+  ChevronsUp,
+  ChevronDown,
+  Equal,
+  Bookmark,
+  Bug,
+  CheckSquare,
+  Zap,
+  Edit2,
+  Trash2,
+  Flame,
+} from 'lucide-react';
+import { JiraTicket, TicketPriority, TicketType } from '../types/jira';
+
+interface TicketCardProps {
+  ticket: JiraTicket;
+  onEdit: (ticket: JiraTicket) => void;
+  onDelete: (id: string) => void;
+  onDragStart: (e: React.DragEvent, ticket: JiraTicket) => void;
+}
+
+export const TicketCard: React.FC<TicketCardProps> = ({
+  ticket,
+  onEdit,
+  onDelete,
+  onDragStart,
+}) => {
+  const getPriorityIcon = (priority: TicketPriority) => {
+    switch (priority) {
+      case 'urgent':
+        return (
+          <span title="Urgent Priority" className="text-purple-600 flex items-center gap-0.5">
+            <ChevronsUp className="w-4 h-4 stroke-[3]" />
+          </span>
+        );
+      case 'high':
+        return (
+          <span title="High Priority" className="text-[#DE350B] flex items-center gap-0.5 font-bold">
+            <ChevronUp className="w-4 h-4 stroke-[3]" />
+          </span>
+        );
+      case 'medium':
+        return (
+          <span title="Medium Priority" className="text-[#FF9900]">
+            <Equal className="w-4 h-4 stroke-[3]" />
+          </span>
+        );
+      case 'low':
+      default:
+        return (
+          <span title="Low Priority" className="text-[#36B37E]">
+            <ChevronDown className="w-4 h-4 stroke-[3]" />
+          </span>
+        );
+    }
+  };
+
+  const getTypeIcon = (type: TicketType) => {
+    switch (type) {
+      case 'bug':
+        return (
+          <span title="Bug">
+            <Bug className="w-3.5 h-3.5 text-[#E5493A] fill-red-100" />
+          </span>
+        );
+      case 'story':
+        return (
+          <span title="User Story">
+            <Bookmark className="w-3.5 h-3.5 text-[#36B37E] fill-emerald-100" />
+          </span>
+        );
+      case 'epic':
+        return (
+          <span title="Epic">
+            <Zap className="w-3.5 h-3.5 text-[#6554C0] fill-purple-100" />
+          </span>
+        );
+      case 'task':
+      default:
+        return (
+          <span title="Task">
+            <CheckSquare className="w-3.5 h-3.5 text-[#4C9AFF] fill-blue-100" />
+          </span>
+        );
+    }
+  };
+
+  const getPriorityBorderClass = (priority: TicketPriority) => {
+    switch (priority) {
+      case 'urgent': return 'priority-urgent-border';
+      case 'high': return 'priority-high-border';
+      case 'medium': return 'priority-medium-border';
+      case 'low': return 'priority-low-border';
+      default: return '';
+    }
+  };
+
+  // Strip HTML tags for clean card summary preview snippet
+  const getCleanSnippet = (html: string) => {
+    const tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    const text = tmp.textContent || tmp.innerText || '';
+    return text.length > 80 ? text.substring(0, 80) + '...' : text;
+  };
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, ticket)}
+      className={`jira-card p-3 cursor-grab active:cursor-grabbing hover:bg-slate-50/90 group relative transition ${getPriorityBorderClass(
+        ticket.priority
+      )}`}
+    >
+      {/* Title & Quick Actions */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <h4 className="text-xs font-semibold text-[#172B4D] leading-snug line-clamp-2 hover:text-[#0052CC]">
+          {ticket.title}
+        </h4>
+
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onEdit(ticket)}
+            title="Edit Issue"
+            className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-900 transition"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onDelete(ticket.id)}
+            title="Delete Issue"
+            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-600 transition"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* Description Snippet */}
+      {ticket.description && (
+        <p className="text-[11px] text-[#5E6C84] mb-3 line-clamp-2 leading-tight font-normal">
+          {getCleanSnippet(ticket.description)}
+        </p>
+      )}
+
+      {/* Jira Card Footer: Issue Type, Key, Priority, Points, Assignee */}
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+        {/* Left: Type Icon + Issue Key */}
+        <div className="flex items-center gap-1.5">
+          {getTypeIcon(ticket.type)}
+          <span className="font-semibold text-[11px] text-[#5E6C84] hover:text-[#0052CC] cursor-pointer">
+            {ticket.key}
+          </span>
+          {ticket.priority === 'high' && (
+            <span className="bg-red-100 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+              <Flame className="w-2.5 h-2.5" /> High
+            </span>
+          )}
+        </div>
+
+        {/* Right: Priority Icon + Story Points + Assignee Avatar */}
+        <div className="flex items-center gap-2">
+          {getPriorityIcon(ticket.priority)}
+
+          {/* Story Points Circle */}
+          <span
+            title={`${ticket.storyPoints} Story Points`}
+            className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center border border-slate-200"
+          >
+            {ticket.storyPoints}
+          </span>
+
+          {/* Assignee Avatar */}
+          <img
+            src={ticket.assignee.avatar}
+            alt={ticket.assignee.name}
+            title={`Assigned to ${ticket.assignee.name}`}
+            className="w-5 h-5 rounded-full object-cover border border-white shadow-xs"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};

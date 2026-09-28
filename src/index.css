@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #f4f5f7;
+    color: #172b4d;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Helvetica Neue', sans-serif;
+    min-height: 100vh;
+  }
+}
+
+/* Jira Classic Colors */
+.jira-bg {
+  background-color: #f4f5f7;
+}
+
+.jira-sidebar-bg {
+  background-color: #0747a6;
+}
+
+.jira-column-bg {
+  background-color: #f4f5f7;
+  border: 1px solid #dfe1e6;
+}
+
+.jira-card {
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(9, 30, 66, 0.25);
+  border: 1px solid #e2e8f0;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.jira-card:hover {
+  box-shadow: 0 4px 8px -2px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  border-color: #b3d4ff;
+}
+
+/* Custom scrollbar for Jira columns */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(9, 30, 66, 0.04);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(9, 30, 66, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(9, 30, 66, 0.35);
+}
+
+/* Priority Cheer Highlighting */
+.priority-high-border {
+  border-left: 3.5px solid #de350b !important;
+}
+
+.priority-urgent-border {
+  border-left: 3.5px solid #6554c0 !important;
+}
+
+.priority-medium-border {
+  border-left: 3.5px solid #ff9900 !important;
+}
+
+.priority-low-border {
+  border-left: 3.5px solid #36b37e !important;
+}
+
+/* Drop target highlight */
+.jira-drop-target {
+  background-color: #deebff !important;
+  border: 2px dashed #0052cc !important;
+}
