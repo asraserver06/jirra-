@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Search, Flame, Filter, Zap, CheckCircle2, User as UserIcon } from 'lucide-react';
 import { TicketPriority, JiraTicket, User } from '../types/jira';
@@ -27,24 +29,24 @@ export const PriorityFilter: React.FC<PriorityFilterProps> = ({
   ).length;
 
   return (
-    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5 py-2 border-b border-[#DFE1E6]">
+    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5 py-2 border-b border-border">
       {/* Left: Search + Assignee Avatars Filter */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search Board Input */}
         <div className="relative w-48 sm:w-64">
-          <Search className="w-3.5 h-3.5 text-[#5E6C84] absolute left-2.5 top-2.5 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-2.5 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search this board..."
-            className="w-full bg-white text-xs text-[#172B4D] placeholder-[#6B778C] rounded border border-[#DFE1E6] pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#4C9AFF] focus:ring-1 focus:ring-[#4C9AFF] transition"
+            className="w-full bg-background text-xs text-foreground placeholder-muted-foreground rounded border border-border pl-8 pr-3 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
           />
         </div>
 
         {/* Assignee Avatar Filter Row */}
-        <div className="flex items-center gap-1 border-l border-[#DFE1E6] pl-3">
-          <span className="text-[11px] font-semibold text-[#5E6C84] mr-1 hidden sm:inline">Members:</span>
+        <div className="flex items-center gap-1 border-l border-border pl-3">
+          <span className="text-[11px] font-semibold text-muted-foreground mr-1 hidden sm:inline">Members:</span>
           {MOCK_USERS.map((user) => {
             const isSelected = selectedAssigneeId === user.id;
             return (
@@ -53,64 +55,59 @@ export const PriorityFilter: React.FC<PriorityFilterProps> = ({
                 onClick={() => onAssigneeChange(isSelected ? null : user.id)}
                 title={`Filter by ${user.name}`}
                 className={`w-7 h-7 rounded-full overflow-hidden transition border-2 ${
-                  isSelected ? 'border-[#0052CC] ring-2 ring-blue-300 scale-110' : 'border-white opacity-70 hover:opacity-100'
+                  isSelected ? 'border-[#0052CC] ring-2 ring-blue-300 scale-110' : 'border-background opacity-70 hover:opacity-100'
                 }`}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
               </button>
             );
           })}
-
           {selectedAssigneeId && (
             <button
               onClick={() => onAssigneeChange(null)}
-              className="text-[11px] text-[#0052CC] hover:underline font-semibold ml-1"
+              className="text-[10px] text-muted-foreground hover:text-foreground font-semibold ml-1 underline"
             >
-              Clear filter
+              Clear
             </button>
           )}
         </div>
       </div>
 
-      {/* Right: Quick Filters (High Priority, Medium, Low, All) */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs font-semibold text-[#5E6C84] mr-1">Quick Filters:</span>
-
-        {/* All Issues */}
+      {/* Right: Quick Filter Pills */}
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
         <button
           onClick={() => onPriorityChange('all')}
           className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
             selectedPriority === 'all'
-              ? 'bg-[#EBECF0] text-[#0052CC] font-bold'
-              : 'text-[#42526E] hover:bg-[#F4F5F7]'
+              ? 'bg-[#0052CC] text-white shadow-xs'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          All issues ({tickets.length})
+          All Issues ({tickets.length})
         </button>
 
-        {/* 🔥 High & Urgent Priority Button */}
         <button
           onClick={() => onPriorityChange('high_urgent')}
-          className={`px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 transition ${
+          className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition ${
             selectedPriority === 'high_urgent'
-              ? 'bg-red-100 text-[#DE350B] ring-1 ring-red-400'
-              : 'text-[#DE350B] hover:bg-red-50'
+              ? 'bg-red-600 text-white shadow-xs'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          <Flame className="w-3.5 h-3.5 text-[#DE350B]" />
+          <Flame className="w-3.5 h-3.5 text-red-500" />
           High Priority ({highPriorityCount})
         </button>
 
-        {/* Low Priority */}
         <button
-          onClick={() => onPriorityChange('low')}
+          onClick={() => onPriorityChange('urgent')}
           className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
-            selectedPriority === 'low'
-              ? 'bg-emerald-100 text-[#36B37E] font-bold'
-              : 'text-[#36B37E] hover:bg-emerald-50'
+            selectedPriority === 'urgent'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
-          Low Priority
+          Urgent Only
         </button>
       </div>
     </div>
