@@ -1,8 +1,7 @@
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ENV } from './env.js';
 
-let mongod: MongoMemoryServer | null = null;
+let mongod: any = null;
 
 export const connectDB = async (): Promise<void> => {
   try {
@@ -21,6 +20,8 @@ export const connectDB = async (): Promise<void> => {
       return;
     } catch {
       console.log('⚠️ Local MongoDB not detected. Bootstrapping embedded In-Memory MongoDB engine...');
+      // Dynamic import — only loads in dev when no MongoDB is available
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
       mongod = await MongoMemoryServer.create();
       const uri = mongod.getUri();
       await mongoose.connect(uri);
