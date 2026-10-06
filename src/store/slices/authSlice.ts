@@ -84,6 +84,26 @@ export const registerUser = createAsyncThunk(
   }
 );
 
+export const googleLogin = createAsyncThunk(
+  'auth/googleLogin',
+  async (credential: string, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return rejectWithValue(data.message || 'Google authentication failed');
+      }
+      return data.data; // { user, accessToken, refreshToken }
+    } catch (err: any) {
+      return rejectWithValue(err.message || 'Network error during Google authentication');
+    }
+  }
+);
+
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -155,8 +175,29 @@ export const authSlice = createSlice({
       state.status = 'failed';
       state.error = (action.payload as string) || 'Registration failed';
     });
+
+    // Google Login
+    builder.addCase(googleLogin.pending, (state) => {
+      state.status = 'loading';
+      state.error = null;
+    });
+    builder.addCase(googleLogin.fulfilled, (state, action) => {
+      state.status = 'succeeded';
+      state.user = action.payload.user;
+      state.token = action.payload.accessToken;
+      state.isAuthenticated = true;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('jira_token', action.payload.accessToken);
+        localStorage.setItem('jira_user', JSON.stringify(action.payload.user));
+      }
+    });
+    builder.addCase(googleLogin.rejected, (state, action) => {
+      state.status = 'failed';
+      state.error = (action.payload as string) || 'Google authentication failed';
+    });
   },
 });
 
 export const { setCredentials, logout, clearError } = authSlice.actions;
 export default authSlice.reducer;
+

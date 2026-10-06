@@ -12,7 +12,7 @@ export default function NotFound() {
         404 — Issue or Page Not Found
       </h2>
       <p className="max-w-md text-sm text-muted-foreground mb-6">
-        The Jira ticket, sprint board, or resource you are searching for does not exist or may have been archived.
+        The TaskFlow ticket, sprint board, or resource you are searching for does not exist or may have been archived.
       </p>
       <Link href="/board">
         <Button variant="jira">Go to Project Board</Button>

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, MoreHorizontal, CheckCircle2, Clock, AlertCircle, ListTodo } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus } from 'lucide-react';
 import { JiraTicket, TicketStatus } from '../types/jira';
 import { COLUMNS } from '../data/mockData';
 import { TicketCard } from './TicketCard';
@@ -53,7 +54,7 @@ export const Board: React.FC<BoardProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-start pb-12">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-12">
       {COLUMNS.map((column) => {
         const colTickets = tickets.filter((t) => t.status === column.id);
         const colStoryPoints = colTickets.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
@@ -65,35 +66,35 @@ export const Board: React.FC<BoardProps> = ({
             onDragOver={(e) => handleDragOver(e, column.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
-            className={`flex flex-col rounded-lg bg-muted/50 border transition-all duration-150 min-h-[460px] ${
+            className={`flex flex-col rounded-2xl bg-muted/40 border transition-all duration-200 min-h-[500px] ${
               isDropTarget
-                ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/30 ring-2 ring-blue-500/20'
-                : 'border-border'
+                ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
+                : 'border-border/70'
             }`}
           >
             {/* Column Header */}
-            <div className="p-3 pb-2 flex items-center justify-between">
+            <div className="p-3.5 pb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span
                   className="w-2.5 h-2.5 rounded-full"
                   style={{ backgroundColor: column.color }}
                 />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground/80">
                   {column.title}
                 </h3>
-                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-background border border-border text-muted-foreground shadow-2xs">
                   {colTickets.length}
                 </span>
               </div>
 
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground font-semibold">
                   {colStoryPoints} pts
                 </span>
                 <button
                   onClick={() => onOpenCreateModal(column.id)}
-                  title="Create issue in this column"
-                  className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition"
+                  title="Create issue in column"
+                  className="p-1 hover:bg-background border border-transparent hover:border-border rounded-lg text-muted-foreground hover:text-foreground transition-all shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -101,25 +102,35 @@ export const Board: React.FC<BoardProps> = ({
             </div>
 
             {/* Column Ticket Stream */}
-            <div className="p-2 space-y-2 flex-1">
-              {colTickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  onEdit={onEditTicket}
-                  onDelete={onDeleteTicket}
-                  onDragStart={handleDragStart}
-                />
-              ))}
+            <div className="p-2.5 space-y-2.5 flex-1">
+              <AnimatePresence mode="popLayout">
+                {colTickets.map((ticket) => (
+                  <motion.div
+                    key={ticket.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <TicketCard
+                      ticket={ticket}
+                      onEdit={onEditTicket}
+                      onDelete={onDeleteTicket}
+                      onDragStart={handleDragStart}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
 
               {colTickets.length === 0 && (
-                <div className="h-32 flex flex-col items-center justify-center border border-dashed border-border rounded text-muted-foreground/60 text-xs">
-                  <span>No issues</span>
+                <div className="h-36 flex flex-col items-center justify-center border border-dashed border-border/80 rounded-xl text-muted-foreground/60 text-xs">
+                  <span>No tasks here</span>
                   <button
                     onClick={() => onOpenCreateModal(column.id)}
-                    className="text-[11px] text-[#0052CC] dark:text-blue-400 hover:underline mt-1 flex items-center gap-1"
+                    className="text-[11px] text-primary hover:underline mt-1.5 flex items-center gap-1 font-semibold"
                   >
-                    <Plus className="w-3 h-3" /> Create issue
+                    <Plus className="w-3 h-3" /> Add task
                   </button>
                 </div>
               )}

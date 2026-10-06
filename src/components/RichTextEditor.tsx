@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useRef, useState, useEffect } from 'react';
 import {
   Bold,
@@ -11,8 +13,6 @@ import {
   List,
   ListOrdered,
   Type,
-  Eye,
-  Edit3,
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -91,17 +91,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   return (
-    <div className="border border-[#DFE1E6] rounded-md overflow-hidden bg-white shadow-xs">
-      {/* Jira Editor Toolbar */}
-      <div className="bg-[#FAFBFC] border-b border-[#DFE1E6] p-1.5 flex flex-wrap items-center justify-between gap-1.5">
-        <div className="flex flex-wrap items-center gap-1">
-          {/* Bold, Italic, Underline, Strikethrough */}
-          <div className="flex items-center bg-white rounded border border-[#DFE1E6] p-0.5">
+    <div className="border border-border rounded-xl overflow-hidden bg-card shadow-2xs">
+      {/* Editor Toolbar */}
+      <div className="bg-muted/40 border-b border-border p-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Formatting */}
+          <div className="flex items-center bg-background rounded-lg border border-border p-0.5">
             <button
               type="button"
               onClick={() => executeCommand('bold')}
               title="Bold"
-              className="p-1 hover:bg-[#EBECF0] rounded text-[#42526E] hover:text-[#0052CC] transition font-bold"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors font-bold"
             >
               <Bold className="w-3.5 h-3.5" />
             </button>
@@ -109,7 +109,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => executeCommand('italic')}
               title="Italic"
-              className="p-1 hover:bg-[#EBECF0] rounded text-[#42526E] hover:text-[#0052CC] transition"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
             >
               <Italic className="w-3.5 h-3.5" />
             </button>
@@ -117,7 +117,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => executeCommand('underline')}
               title="Underline"
-              className="p-1 hover:bg-[#EBECF0] rounded text-[#42526E] hover:text-[#0052CC] transition"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
             >
               <Underline className="w-3.5 h-3.5" />
             </button>
@@ -125,22 +125,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => executeCommand('strikeThrough')}
               title="Strikethrough"
-              className="p-1 hover:bg-[#EBECF0] rounded text-[#42526E] hover:text-[#0052CC] transition"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
             >
               <Strikethrough className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Font Family Selector */}
-          <div className="flex items-center bg-white rounded border border-[#DFE1E6] px-2 py-0.5 text-xs text-[#42526E] gap-1">
-            <Type className="w-3 h-3 text-[#0052CC]" />
+          {/* Font Family */}
+          <div className="flex items-center bg-background rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground gap-1.5">
+            <Type className="w-3 h-3 text-primary" />
             <select
               value={currentFont}
               onChange={(e) => handleFontChange(e.target.value)}
-              className="bg-transparent text-[#172B4D] outline-none cursor-pointer text-xs font-semibold"
+              className="bg-transparent text-foreground outline-none cursor-pointer text-xs font-semibold"
             >
               {FONT_OPTIONS.map((font) => (
-                <option key={font.value} value={font.value}>
+                <option key={font.value} value={font.value} className="bg-card text-card-foreground">
                   {font.label}
                 </option>
               ))}
@@ -148,29 +148,29 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </div>
 
           {/* Style Selector */}
-          <div className="flex items-center bg-white rounded border border-[#DFE1E6] px-2 py-0.5 text-xs text-[#42526E] gap-1">
-            <span className="font-semibold text-xs text-[#6554C0]">Style:</span>
+          <div className="flex items-center bg-background rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground gap-1.5">
+            <span className="font-semibold text-xs text-primary">Style:</span>
             <select
               onChange={(e) => handleHeadingChange(e.target.value)}
-              className="bg-transparent text-[#172B4D] outline-none cursor-pointer text-xs"
+              className="bg-transparent text-foreground outline-none cursor-pointer text-xs font-medium"
               defaultValue="p"
             >
-              <option value="p">Paragraph (Normal)</option>
-              <option value="h1">Heading 1 (Large)</option>
-              <option value="h2">Heading 2 (Medium)</option>
-              <option value="h3">Heading 3 (Small)</option>
-              <option value="blockquote">Quote Block</option>
-              <option value="pre">Code Block</option>
+              <option value="p" className="bg-card text-card-foreground">Paragraph</option>
+              <option value="h1" className="bg-card text-card-foreground">Heading 1</option>
+              <option value="h2" className="bg-card text-card-foreground">Heading 2</option>
+              <option value="h3" className="bg-card text-card-foreground">Heading 3</option>
+              <option value="blockquote" className="bg-card text-card-foreground">Quote</option>
+              <option value="pre" className="bg-card text-card-foreground">Code</option>
             </select>
           </div>
 
-          {/* Alignment Selector */}
-          <div className="flex items-center bg-white rounded border border-[#DFE1E6] p-0.5">
+          {/* Alignment */}
+          <div className="flex items-center bg-background rounded-lg border border-border p-0.5">
             <button
               type="button"
               onClick={() => handleAlignChange('left')}
               title="Align Left"
-              className={`p-1 rounded transition ${currentAlign === 'left' ? 'bg-[#DEEBFF] text-[#0052CC]' : 'hover:bg-[#EBECF0] text-[#42526E]'}`}
+              className={`p-1 rounded transition-colors ${currentAlign === 'left' ? 'bg-secondary text-primary' : 'hover:bg-muted text-muted-foreground'}`}
             >
               <AlignLeft className="w-3.5 h-3.5" />
             </button>
@@ -178,7 +178,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => handleAlignChange('center')}
               title="Align Center"
-              className={`p-1 rounded transition ${currentAlign === 'center' ? 'bg-[#DEEBFF] text-[#0052CC]' : 'hover:bg-[#EBECF0] text-[#42526E]'}`}
+              className={`p-1 rounded transition-colors ${currentAlign === 'center' ? 'bg-secondary text-primary' : 'hover:bg-muted text-muted-foreground'}`}
             >
               <AlignCenter className="w-3.5 h-3.5" />
             </button>
@@ -186,7 +186,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => handleAlignChange('right')}
               title="Align Right"
-              className={`p-1 rounded transition ${currentAlign === 'right' ? 'bg-[#DEEBFF] text-[#0052CC]' : 'hover:bg-[#EBECF0] text-[#42526E]'}`}
+              className={`p-1 rounded transition-colors ${currentAlign === 'right' ? 'bg-secondary text-primary' : 'hover:bg-muted text-muted-foreground'}`}
             >
               <AlignRight className="w-3.5 h-3.5" />
             </button>
@@ -194,19 +194,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => handleAlignChange('justify')}
               title="Justify"
-              className={`p-1 rounded transition ${currentAlign === 'justify' ? 'bg-[#DEEBFF] text-[#0052CC]' : 'hover:bg-[#EBECF0] text-[#42526E]'}`}
+              className={`p-1 rounded transition-colors ${currentAlign === 'justify' ? 'bg-secondary text-primary' : 'hover:bg-muted text-muted-foreground'}`}
             >
               <AlignJustify className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Lists */}
-          <div className="flex items-center bg-white rounded border border-[#DFE1E6] p-0.5">
+          <div className="flex items-center bg-background rounded-lg border border-border p-0.5">
             <button
               type="button"
               onClick={() => executeCommand('insertUnorderedList')}
               title="Bullet List"
-              className="p-1 hover:bg-[#EBECF0] rounded text-[#42526E] hover:text-[#0052CC] transition"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
             >
               <List className="w-3.5 h-3.5" />
             </button>
@@ -214,7 +214,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               type="button"
               onClick={() => executeCommand('insertOrderedList')}
               title="Numbered List"
-              className="p-1 hover:bg-[#EBECF0] rounded text-[#42526E] hover:text-[#0052CC] transition"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
             >
               <ListOrdered className="w-3.5 h-3.5" />
             </button>
@@ -222,12 +222,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
 
         {/* View Mode */}
-        <div className="flex items-center bg-[#EBECF0] rounded p-0.5 text-xs">
+        <div className="flex items-center bg-muted/60 rounded-lg p-0.5 text-xs border border-border">
           <button
             type="button"
             onClick={() => setActiveTab('editor')}
-            className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${
-              activeTab === 'editor' ? 'bg-white text-[#0052CC] shadow-xs' : 'text-[#5E6C84]'
+            className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all ${
+              activeTab === 'editor' ? 'bg-background text-foreground shadow-2xs' : 'text-muted-foreground'
             }`}
           >
             Edit
@@ -235,8 +235,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('preview')}
-            className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${
-              activeTab === 'preview' ? 'bg-white text-[#0052CC] shadow-xs' : 'text-[#5E6C84]'
+            className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all ${
+              activeTab === 'preview' ? 'bg-background text-foreground shadow-2xs' : 'text-muted-foreground'
             }`}
           >
             Preview
@@ -244,8 +244,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       </div>
 
-      {/* Text Box Content */}
-      <div className="p-3 bg-white min-h-[180px]">
+      {/* Editor Content Area */}
+      <div className="p-3 bg-card min-h-[180px]">
         {activeTab === 'editor' ? (
           <div
             ref={editorRef}
@@ -255,7 +255,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               fontFamily: currentFont,
               textAlign: currentAlign,
             }}
-            className="outline-none min-h-[160px] text-[#172B4D] leading-normal text-xs focus:ring-0"
+            className="outline-none min-h-[160px] text-card-foreground leading-normal text-xs focus:ring-0"
           />
         ) : (
           <div
@@ -263,8 +263,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               fontFamily: currentFont,
               textAlign: currentAlign,
             }}
-            className="text-[#172B4D] leading-normal text-xs min-h-[160px] p-2 bg-slate-50 rounded border border-slate-200"
-            dangerouslySetInnerHTML={{ __html: value || '<em class="text-slate-400">No content provided.</em>' }}
+            className="text-card-foreground leading-normal text-xs min-h-[160px] p-3 bg-muted/30 rounded-lg border border-border"
+            dangerouslySetInnerHTML={{ __html: value || '<em class="text-muted-foreground">No content provided.</em>' }}
           />
         )}
       </div>

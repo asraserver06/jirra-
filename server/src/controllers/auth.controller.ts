@@ -6,6 +6,7 @@ import { ENV } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
 import { sendSuccess } from '../utils/response.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { sendWelcomeEmail } from '../services/email.service.js';
 
 const googleClient = new OAuth2Client(ENV.GOOGLE_CLIENT_ID);
 
@@ -43,6 +44,11 @@ export const register = async (req: Request, res: Response) => {
     role: role || 'developer',
     avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
   });
+
+  // Send welcome email (asynchronously without blocking the response)
+  sendWelcomeEmail(user.email, user.name).catch((err) =>
+    console.error('Failed to send welcome email:', err)
+  );
 
   const { accessToken, refreshToken } = generateTokens(user);
 
@@ -189,6 +195,11 @@ export const googleAuth = async (req: Request, res: Response) => {
       role: 'developer',
       avatar: picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'user')}`,
     });
+
+    // Optionally trigger welcome email for new Google signups
+    sendWelcomeEmail(user.email, user.name).catch((err) =>
+      console.error('Failed to send welcome email:', err)
+    );
   }
 
   const { accessToken, refreshToken } = generateTokens(user);

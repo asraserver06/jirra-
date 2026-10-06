@@ -5,12 +5,12 @@ import { ThemeProvider } from '@/components/ui/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Jira Cloud — Agile Project Management & Issue Tracking',
+  title: 'TaskFlow — Agile Project Management & Issue Tracking',
   description: 'Streamline team velocity with Next.js App Router, shadcn/ui, Redux Toolkit, and high-performance Express REST backend with MongoDB.',
-  keywords: ['Jira', 'Agile', 'Kanban', 'Scrum', 'Next.js', 'shadcn/ui', 'Redux Toolkit', 'Express', 'MongoDB'],
-  authors: [{ name: 'Jira Engineering Team' }],
+  keywords: ['TaskFlow', 'Agile', 'Kanban', 'Scrum', 'Next.js', 'shadcn/ui', 'Redux Toolkit', 'Express', 'MongoDB'],
+  authors: [{ name: 'TaskFlow Engineering Team' }],
   openGraph: {
-    title: 'Jira Cloud — Agile Project Management',
+    title: 'TaskFlow — Agile Project Management',
     description: 'Collaborate, plan sprints, and ship software with speed.',
     type: 'website',
   },

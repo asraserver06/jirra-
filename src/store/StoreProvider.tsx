@@ -2,7 +2,10 @@
 
 import { useRef } from 'react';
 import { Provider } from 'react-redux';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { makeStore, AppStore } from './index';
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 export default function StoreProvider({
   children,
@@ -15,5 +18,11 @@ export default function StoreProvider({
     storeRef.current = makeStore();
   }
 
-  return <Provider store={storeRef.current}>{children}</Provider>;
+  return (
+    <Provider store={storeRef.current}>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        {children}
+      </GoogleOAuthProvider>
+    </Provider>
+  );
 }

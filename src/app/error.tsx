@@ -24,7 +24,7 @@ export default function ErrorBoundary({
         Something went wrong!
       </h2>
       <p className="max-w-md text-sm text-muted-foreground mb-6">
-        {error.message || 'An unexpected error occurred while loading this Jira view.'}
+        {error.message || 'An unexpected error occurred while loading this TaskFlow view.'}
       </p>
       <div className="flex gap-3">
         <Button onClick={() => reset()} variant="jira" className="gap-2">

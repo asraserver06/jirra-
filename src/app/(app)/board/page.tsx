@@ -43,7 +43,7 @@ export default function BoardPage() {
   };
 
   const handleDeleteTicket = (ticketId: string) => {
-    if (confirm('Are you sure you want to delete this Jira ticket?')) {
+    if (confirm('Are you sure you want to delete this TaskFlow ticket?')) {
       dispatch(deleteTicketThunk(ticketId));
     }
   };
@@ -88,33 +88,32 @@ export default function BoardPage() {
     <div className="flex flex-col max-w-7xl mx-auto w-full">
       {/* Breadcrumb Header */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
-        <span>Projects</span>
+        <span>Workspaces</span>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-[#0052CC] dark:text-blue-400 font-semibold">Acme Software</span>
+        <span className="text-foreground font-semibold">Acme Workspace</span>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-foreground font-bold">PROJ board</span>
+        <span className="text-primary font-bold">PROJ Board</span>
       </div>
 
       {/* Board Title & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl font-black text-foreground tracking-tight flex items-center gap-2">
-            <KanbanIcon className="w-5 h-5 text-blue-500" />
-            PROJ board
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2.5">
+            <KanbanIcon className="w-6 h-6 text-primary" />
+            Project Board
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Sprint 14 — Active Scrum & Kanban Board
+            Sprint 14 — Active Task & Issue Tracking
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
             onClick={() => handleOpenCreateModal('todo')}
-            variant="jira"
             size="sm"
-            className="text-xs font-bold gap-1.5"
+            className="text-xs font-semibold gap-1.5 rounded-xl shadow-xs"
           >
-            <Plus className="w-4 h-4" /> Create issue
+            <Plus className="w-4 h-4" /> Create Issue
           </Button>
         </div>
       </div>
