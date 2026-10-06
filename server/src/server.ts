@@ -9,7 +9,7 @@ const startServer = async () => {
 
   const server = app.listen(ENV.PORT, () => {
     console.log(`===============================================`);
-    console.log(`🚀 Jira Express REST API Server running on port ${ENV.PORT}`);
+    console.log(`🚀 TaskFlow Express REST API Server running on port ${ENV.PORT}`);
     console.log(`🔗 API Base: http://localhost:${ENV.PORT}/api`);
     console.log(`🩺 Health: http://localhost:${ENV.PORT}/api/health`);
     console.log(`🌱 Seed: npm run seed (to populate realistic dataset)`);

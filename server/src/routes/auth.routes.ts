@@ -5,6 +5,7 @@ import {
   refresh,
   getMe,
   getAllUsers,
+  googleAuth,
 } from '../controllers/auth.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
@@ -19,6 +20,7 @@ const router = Router();
 
 router.post('/register', validate(registerSchema), asyncHandler(register));
 router.post('/login', validate(loginSchema), asyncHandler(login));
+router.post('/google', asyncHandler(googleAuth));
 router.post('/refresh', validate(refreshTokenSchema), asyncHandler(refresh));
 router.get('/me', authenticate, asyncHandler(getMe));
 router.get('/users', asyncHandler(getAllUsers));

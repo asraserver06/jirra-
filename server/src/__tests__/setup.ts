@@ -1,18 +1,31 @@
-import { beforeAll, afterAll } from 'vitest';
+import { beforeAll, afterAll, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
 let mongo: MongoMemoryServer | null = null;
 
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
+  // Allow up to 120s for first-time binary download + startup
+  mongo = await MongoMemoryServer.create({
+    instance: {
+      launchTimeout: 120000,
+    },
+  });
   const uri = mongo.getUri();
   await mongoose.connect(uri);
-}, 60000);
+}, 120000);
+
+afterEach(async () => {
+  // Drop all collections between tests for full isolation
+  const collections = mongoose.connection.collections;
+  for (const key in collections) {
+    await collections[key].deleteMany({});
+  }
+});
 
 afterAll(async () => {
   await mongoose.disconnect();
   if (mongo) {
     await mongo.stop();
   }
-});
+}, 30000);

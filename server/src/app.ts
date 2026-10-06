@@ -77,10 +77,10 @@ export const createApp = () => {
 
   // Healthcheck endpoint
   app.get('/health', (req, res) => {
-    sendSuccess(res, { status: 'healthy', uptime: process.uptime() }, 'Jira API is running smoothly');
+    sendSuccess(res, { status: 'healthy', uptime: process.uptime() }, 'TaskFlow API is running smoothly');
   });
   app.get('/api/health', (req, res) => {
-    sendSuccess(res, { status: 'healthy', uptime: process.uptime() }, 'Jira API is running smoothly');
+    sendSuccess(res, { status: 'healthy', uptime: process.uptime() }, 'TaskFlow API is running smoothly');
   });
 
   // Mount API Routers

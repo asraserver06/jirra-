@@ -14,28 +14,28 @@ export const seedDatabase = async () => {
   const users = await User.create([
     {
       name: 'Alex Morgan',
-      email: 'alex.morgan@acme-jira.io',
+      email: 'alex.morgan@acme-taskflow.io',
       password: 'jira1234',
       role: 'admin',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     },
     {
       name: 'Sarah Connor',
-      email: 'sarah.connor@acme-jira.io',
+      email: 'sarah.connor@acme-taskflow.io',
       password: 'jira1234',
       role: 'lead',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
     },
     {
       name: 'Marcus Vance',
-      email: 'marcus.vance@acme-jira.io',
+      email: 'marcus.vance@acme-taskflow.io',
       password: 'jira1234',
       role: 'developer',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     },
     {
       name: 'Elena Rostova',
-      email: 'elena.rostova@acme-jira.io',
+      email: 'elena.rostova@acme-taskflow.io',
       password: 'jira1234',
       role: 'developer',
       avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
@@ -53,7 +53,7 @@ export const seedDatabase = async () => {
     status: 'active',
   });
 
-  console.log('🎫 Creating realistic Jira tickets...');
+  console.log('🎫 Creating realistic TaskFlow tickets...');
   const ticketsData = [
     {
       key: 'PROJ-101',
@@ -249,10 +249,10 @@ export const seedDatabase = async () => {
 
   console.log(`✅ Successfully seeded ${ticketsData.length} tickets and 4 team users!`);
   console.log('🔑 Demo User Accounts:');
-  console.log('   - alex.morgan@acme-jira.io (Password: jira1234, Role: admin)');
-  console.log('   - sarah.connor@acme-jira.io (Password: jira1234, Role: lead)');
-  console.log('   - marcus.vance@acme-jira.io (Password: jira1234, Role: developer)');
-  console.log('   - elena.rostova@acme-jira.io (Password: jira1234, Role: developer)');
+  console.log('   - alex.morgan@acme-taskflow.io (Password: jira1234, Role: admin)');
+  console.log('   - sarah.connor@acme-taskflow.io (Password: jira1234, Role: lead)');
+  console.log('   - marcus.vance@acme-taskflow.io (Password: jira1234, Role: developer)');
+  console.log('   - elena.rostova@acme-taskflow.io (Password: jira1234, Role: developer)');
 };
 
 // Execute if run directly

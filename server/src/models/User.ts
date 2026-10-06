@@ -7,6 +7,8 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
+  googleId?: string;
+  authProvider: 'local' | 'google';
   role: UserRole;
   avatar: string;
   createdAt: Date;
@@ -33,9 +35,18 @@ const UserSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters long'],
       select: false,
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
     },
     role: {
       type: String,
@@ -62,7 +73,7 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Pre-save hook: Hash password with bcrypt
+// Pre-save hook: Hash password with bcrypt (only for local auth)
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) return next();
   try {

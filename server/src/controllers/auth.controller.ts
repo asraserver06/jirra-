@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import { User, IUser } from '../models/User.js';
 import { ENV } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
 import { sendSuccess } from '../utils/response.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
+
+const googleClient = new OAuth2Client(ENV.GOOGLE_CLIENT_ID);
 
 const generateTokens = (user: IUser) => {
   const payload = {
@@ -141,4 +144,75 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 export const getAllUsers = async (req: Request, res: Response) => {
   const users = await User.find().select('name email role avatar').sort('name');
   return sendSuccess(res, users, 'Users list retrieved');
+};
+
+export const googleAuth = async (req: Request, res: Response) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    throw new AppError('Google credential token is required', 400);
+  }
+
+  // Verify the Google ID token
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: ENV.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = ticket.getPayload();
+  if (!payload || !payload.email) {
+    throw new AppError('Invalid Google token payload', 401);
+  }
+
+  const { sub: googleId, email, name, picture } = payload;
+
+  // Find existing user by googleId or email
+  let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+  if (user) {
+    // Link Google to existing local account if needed
+    if (!user.googleId) {
+      user.googleId = googleId;
+      user.authProvider = 'google';
+      if (picture && !user.avatar.includes('unsplash')) {
+        user.avatar = picture;
+      }
+      await user.save();
+    }
+  } else {
+    // Create a new user from Google profile
+    user = await User.create({
+      name: name || email!.split('@')[0],
+      email,
+      googleId,
+      authProvider: 'google',
+      role: 'developer',
+      avatar: picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name || 'user')}`,
+    });
+  }
+
+  const { accessToken, refreshToken } = generateTokens(user);
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: ENV.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return sendSuccess(
+    res,
+    {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+      accessToken,
+      refreshToken,
+    },
+    'Google authentication successful'
+  );
 };
