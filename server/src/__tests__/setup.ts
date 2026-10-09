@@ -2,6 +2,9 @@ import { beforeAll, afterAll, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
+process.env.JWT_SECRET = 'test-only-access-token-secret';
+process.env.JWT_REFRESH_SECRET = 'test-only-refresh-token-secret';
+
 let mongo: MongoMemoryServer | null = null;
 
 beforeAll(async () => {
