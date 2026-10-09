@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware.js';
+import { requireWorkspaceContext } from '../middlewares/workspace.middleware.js';
 import {
   getTickets,
   getTicketById,
@@ -22,6 +23,7 @@ import { asyncHandler } from '../middlewares/error.middleware.js';
 const router = Router();
 
 router.use(authenticate);
+router.use(requireWorkspaceContext());
 
 router.get('/', validate(queryTicketSchema), asyncHandler(getTickets));
 router.get('/:id', asyncHandler(getTicketById));

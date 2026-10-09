@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
+import { IWorkspace } from '../models/Workspace.js';
+import { IMembership } from '../models/Membership.js';
 
 export interface AuthenticatedUser {
   id: string;
@@ -11,6 +13,8 @@ export interface AuthenticatedUser {
 
 export interface AuthRequest extends Request {
   user?: AuthenticatedUser;
+  workspace?: IWorkspace;
+  membership?: IMembership;
 }
 
 const readAccessToken = (req: Request): string | undefined => {

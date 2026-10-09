@@ -106,6 +106,15 @@ Visit:
 - **Health Check**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
 
 Create an administrator account at `/register`. New workspaces start empty and persist only API/database records.
+Ticket and analytics requests are scoped by the currently selected workspace. The client sends its ID in the `X-Workspace-Id` header; the API verifies membership before serving workspace data. Use the workspace selector in the sidebar to switch between memberships.
+
+### Migrate existing tickets to workspace isolation
+Review the read-only report before applying the one-time backfill. Tickets are assigned only when their reporter belongs to exactly one workspace; ambiguous or unowned tickets and legacy sprints are reported for manual mapping and are never deleted.
+```bash
+node server/scripts/migrate-ticket-workspaces.js
+node server/scripts/migrate-ticket-workspaces.js --apply --confirm
+```
+The migration refuses to run when `NODE_ENV=production`. Back up the database before applying it; the report lists ticket IDs and reasons that need manual resolution.
 
 ### Reset a development database
 This destructive command drops every collection in the configured MongoDB database. It refuses to run in production and requires explicit confirmation:

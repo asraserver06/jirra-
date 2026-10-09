@@ -4,6 +4,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 
 process.env.JWT_SECRET = 'test-only-access-token-secret';
 process.env.JWT_REFRESH_SECRET = 'test-only-refresh-token-secret';
+process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
 
 let mongo: MongoMemoryServer | null = null;
 

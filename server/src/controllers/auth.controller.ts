@@ -12,6 +12,7 @@ import { Invitation } from '../models/Invitation.js';
 import { generateTokens, setRefreshCookie, clearRefreshCookie, publicUser } from '../utils/authTokens.js';
 import { sendWelcomeEmail } from '../services/email.services.js';
 import { hashInviteToken } from '../utils/inviteToken.js';
+import { loadPendingInviteByToken } from '../services/invite.service.js';
 
 const googleClient = ENV.GOOGLE_CLIENT_ID ? new OAuth2Client(ENV.GOOGLE_CLIENT_ID) : null;
 
@@ -25,6 +26,49 @@ const authPayload = (user: IUser, extra: Record<string, unknown> = {}) => {
       ...extra,
     },
   };
+};
+
+const isDuplicateKeyError = (error: unknown): error is { code: number } =>
+  typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
+
+const findOrLinkGoogleUser = async ({
+  googleId,
+  email,
+  name,
+  picture,
+}: {
+  googleId: string;
+  email: string;
+  name: string;
+  picture?: string;
+}) => {
+  let user = await User.findOne({ $or: [{ googleId }, { email }] });
+  if (!user) return null;
+
+  if (user.googleId && user.googleId !== googleId) {
+    throw new AppError('This email address is linked to another Google account.', 409);
+  }
+
+  if (!user.googleId) {
+    user.googleId = googleId;
+    user.authProvider = 'google';
+    if (picture) user.avatar = picture;
+    try {
+      await user.save();
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+      const linkedUser = await User.findOne({ $or: [{ googleId }, { email }] });
+      if (!linkedUser || (linkedUser.googleId && linkedUser.googleId !== googleId)) {
+        throw new AppError('This email address is linked to another Google account.', 409);
+      }
+      user = linkedUser;
+    }
+  } else if (picture && !user.avatar) {
+    user.avatar = picture;
+    await user.save();
+  }
+
+  return user;
 };
 
 /**
@@ -46,13 +90,14 @@ export const signup = async (req: Request, res: Response) => {
     role,
     inviteToken,
     avatar,
+    googleSignupTicket,
   } = req.body;
 
   const resolvedName = (firstName || lastName)
     ? `${firstName || ''} ${lastName || ''}`.trim()
     : (name || '').trim();
 
-  if (!resolvedName) {
+  if (!resolvedName && !googleSignupTicket) {
     throw new AppError('Name is required.', 400);
   }
 
@@ -63,8 +108,33 @@ export const signup = async (req: Request, res: Response) => {
       403
     );
   }
+  if (googleSignupTicket && inviteToken) {
+    throw new AppError('Google account setup must create an admin workspace, not accept an invitation.', 400);
+  }
 
   const normalizedEmail = email.toLowerCase().trim();
+  let verifiedGoogleIdentity: { googleId: string; name: string } | null = null;
+  if (googleSignupTicket) {
+    let claims: jwt.JwtPayload;
+    try {
+      claims = jwt.verify(googleSignupTicket, ENV.JWT_SECRET, { algorithms: ['HS256'] }) as jwt.JwtPayload;
+    } catch {
+      throw new AppError('Google signup session is invalid or expired. Please sign in with Google again.', 401);
+    }
+    if (
+      claims.purpose !== 'google_signup' ||
+      typeof claims.email !== 'string' ||
+      typeof claims.name !== 'string' ||
+      typeof claims.googleId !== 'string'
+    ) {
+      throw new AppError('Google signup session is invalid. Please sign in with Google again.', 401);
+    }
+    if (claims.email !== normalizedEmail) {
+      throw new AppError('The signup email does not match the verified Google account.', 403);
+    }
+    verifiedGoogleIdentity = { googleId: claims.googleId, name: claims.name };
+  }
+
   const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     throw new AppError('An account with this email address already exists.', 409);
@@ -114,10 +184,13 @@ export const signup = async (req: Request, res: Response) => {
 
   // Admin Sign-Up flow
   const user = await User.create({
-    name: resolvedName,
+    name: resolvedName || verifiedGoogleIdentity!.name,
     email: normalizedEmail,
     password,
     avatar: avatar || '',
+    ...(verifiedGoogleIdentity
+      ? { googleId: verifiedGoogleIdentity.googleId, authProvider: 'google' as const }
+      : {}),
   });
 
   const finalWorkspaceName = (workspaceName || organizationName || `${resolvedName}'s Workspace`).trim();
@@ -227,39 +300,121 @@ export const getMe = async (req: AuthRequest, res: Response) => {
   return sendSuccess(res, user, 'User profile retrieved');
 };
 
+export const googleAuthStatus = async (_req: Request, res: Response) =>
+  sendSuccess(res, { enabled: Boolean(googleClient && ENV.GOOGLE_CLIENT_ID) }, 'Google sign-in availability');
+
 export const googleAuth = async (req: Request, res: Response) => {
   clearRefreshCookie(res);
-  const { credential } = req.body;
+  const { credential, inviteToken } = req.body;
 
   if (!credential || !googleClient || !ENV.GOOGLE_CLIENT_ID) {
     throw new AppError('Google sign-in is not available.', 400);
   }
 
-  const ticket = await googleClient.verifyIdToken({
-    idToken: credential,
-    audience: ENV.GOOGLE_CLIENT_ID,
-  });
-
-  const payload = ticket.getPayload();
-  if (!payload || !payload.email) {
-    throw new AppError('Invalid Google token payload', 401);
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: ENV.GOOGLE_CLIENT_ID,
+    });
+  } catch (error) {
+    const details = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.warn(`Google credential verification failed: ${details}`);
+    throw new AppError('Google sign-in could not verify your account. Please try again.', 401);
   }
 
-  const { sub: googleId, email, picture } = payload;
+  const payload = ticket.getPayload();
+  if (!payload?.email || !payload.sub) {
+    throw new AppError('Invalid Google token payload', 401);
+  }
+  if (!payload.email_verified) {
+    throw new AppError('Google must verify your email address before you can sign in.', 403);
+  }
 
-  const user = await User.findOne({ $or: [{ googleId }, { email }] });
+  const googleId = payload.sub;
+  const email = payload.email.trim().toLowerCase();
+  const name = payload.name?.trim() || email.split('@')[0];
+  const picture = payload.picture;
+
+  let invite: Awaited<ReturnType<typeof loadPendingInviteByToken>> | null = null;
+  if (typeof inviteToken === 'string' && inviteToken) {
+    invite = await loadPendingInviteByToken(inviteToken);
+    if (invite.email.toLowerCase() !== email) {
+      throw new AppError(`This invitation was issued for ${invite.email}. Sign in with that Google email address.`, 403);
+    }
+  }
+
+  const user = await findOrLinkGoogleUser({ googleId, email, name, picture });
   if (!user) {
-    throw new AppError(
-      'This Google account is not a member of any workspace. Ask an admin for an invite, or create a new workspace with email sign-up.',
-      403
+    const pendingInvite = invite || await Invitation.findOne({
+      email,
+      status: 'pending',
+      expiresAt: { $gt: new Date() },
+    });
+    if (pendingInvite) {
+      return sendSuccess(
+        res,
+        {
+          status: 'needs_invite',
+          email,
+          name,
+          ...(inviteToken ? { inviteToken } : {}),
+        },
+        'This email has a pending workspace invitation. Continue from the invitation link.'
+      );
+    }
+
+    const signupTicket = jwt.sign(
+      { purpose: 'google_signup', email, name, googleId },
+      ENV.JWT_SECRET,
+      { expiresIn: '15m', algorithm: 'HS256' }
+    );
+    return sendSuccess(
+      res,
+      { status: 'needs_signup', signupTicket, email, name },
+      'Create an account to set up your workspace.'
     );
   }
 
-  if (!user.googleId) {
-    user.googleId = googleId;
-    user.authProvider = 'google';
-    if (picture) user.avatar = picture;
-    await user.save();
+  if (invite) {
+    let membership = await Membership.findOne({ workspace: invite.workspace, user: user._id });
+    if (!membership) {
+      try {
+        membership = await Membership.create({
+          workspace: invite.workspace,
+          user: user._id,
+          role: invite.role || 'member',
+        });
+      } catch (error) {
+        if (!isDuplicateKeyError(error)) throw error;
+        membership = await Membership.findOne({ workspace: invite.workspace, user: user._id });
+        if (!membership) throw error;
+      }
+    }
+
+    const acceptedInvite = await Invitation.findOneAndUpdate(
+      { _id: invite._id, status: 'pending' },
+      { status: 'accepted' },
+      { new: true }
+    );
+    if (!acceptedInvite) {
+      const currentInvite = await Invitation.findById(invite._id);
+      if (currentInvite?.status !== 'accepted') {
+        throw new AppError('This invitation is no longer available.', 400);
+      }
+    }
+
+    const inviteWorkspace = invite.workspace as unknown as { _id: { toString(): string }; name: string };
+    const auth = authPayload(user, {
+      workspace: {
+        id: inviteWorkspace._id.toString(),
+        _id: inviteWorkspace._id.toString(),
+        name: inviteWorkspace.name,
+        role: invite.role || 'member',
+      },
+    });
+    setRefreshCookie(res, auth.refreshToken);
+    return sendSuccess(res, auth.payload, 'Google account joined the invited workspace successfully');
   }
 
   const auth = authPayload(user);

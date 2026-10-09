@@ -33,7 +33,7 @@ export const Board: React.FC<BoardProps> = ({
   const [draggedTicketId, setDraggedTicketId] = useState<string | null>(null);
   const [activeDropColumn, setActiveDropColumn] = useState<TicketStatus | null>(null);
 
-  const handleDragStart = (e: React.DragEvent, ticket: JiraTicket) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, ticket: JiraTicket) => {
     setDraggedTicketId(ticket.id);
     e.dataTransfer.setData('text/plain', ticket.id);
     e.dataTransfer.effectAllowed = 'move';

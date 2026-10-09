@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { TicketPriority, TicketStatus } from '@/types/jira';
+import { switchWorkspace } from './workspaceSlice';
+import { googleLogin, loginUser, logout, registerUser } from './authSlice';
 
 export interface UIState {
   activeTab: 'kanban' | 'list' | 'analytics';
@@ -46,6 +48,24 @@ export const uiSlice = createSlice({
     setCreateInitialStatus: (state, action: PayloadAction<TicketStatus>) => {
       state.createInitialStatus = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    builder.addMatcher(
+      (action) => [
+        logout.type,
+        loginUser.pending.type,
+        registerUser.pending.type,
+        googleLogin.pending.type,
+        switchWorkspace.type,
+      ].includes(action.type),
+      (state) => {
+        state.selectedPriorityFilter = 'all';
+        state.selectedAssigneeId = null;
+        state.searchQuery = '';
+        state.isCreateModalOpen = false;
+        state.createInitialStatus = 'todo';
+      }
+    );
   },
 });
 

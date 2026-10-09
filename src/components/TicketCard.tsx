@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
   ChevronUp,
   ChevronsUp,
@@ -22,7 +21,7 @@ interface TicketCardProps {
   ticket: JiraTicket;
   onEdit: (ticket: JiraTicket) => void;
   onDelete: (id: string) => void;
-  onDragStart: (e: React.DragEvent, ticket: JiraTicket) => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>, ticket: JiraTicket) => void;
 }
 
 export const TicketCard: React.FC<TicketCardProps> = ({
@@ -82,13 +81,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   };
 
   return (
-    <motion.div
+    <div
       draggable
-      onDragStart={(e: any) => onDragStart(e, ticket)}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      className="bg-card text-card-foreground border border-border/80 p-3.5 rounded-xl cursor-grab active:cursor-grabbing hover:border-foreground/20 hover:shadow-md group relative select-none transition-all"
+      onDragStart={(event) => onDragStart(event, ticket)}
+      className="bg-card text-card-foreground border border-border/80 p-3.5 rounded-xl cursor-grab active:cursor-grabbing hover:-translate-y-0.5 active:scale-[0.98] hover:border-foreground/20 hover:shadow-md group relative select-none transition-all"
     >
       {/* Header: Priority Badge & Actions */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -169,6 +165,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };

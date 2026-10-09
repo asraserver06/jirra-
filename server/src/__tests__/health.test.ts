@@ -66,11 +66,14 @@ describe('Health & Miscellaneous Endpoint Tests', () => {
 
     it('should handle preflight OPTIONS requests', async () => {
       const res = await request(app)
-        .options('/api/tickets')
+        .options('/api/tickets/012345678901234567890123/status')
         .set('Origin', 'http://localhost:3000')
-        .set('Access-Control-Request-Method', 'POST');
+        .set('Access-Control-Request-Method', 'PATCH')
+        .set('Access-Control-Request-Headers', 'authorization,content-type,x-workspace-id');
 
       expect(res.status).toBe(204);
+      expect(res.headers['access-control-allow-methods']).toContain('PATCH');
+      expect(res.headers['access-control-allow-headers']).toContain('X-Workspace-Id');
     });
   });
 

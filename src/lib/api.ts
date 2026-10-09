@@ -25,10 +25,14 @@ api.interceptors.request.use((config) => {
 
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('jira_token');
+    const workspaceId = localStorage.getItem('jira_workspace_id');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
       delete config.headers.Authorization;
+    }
+    if (/\/api\/(?:tickets|analytics)(?:\/|$)/.test(config.url || '') && workspaceId) {
+      config.headers['X-Workspace-Id'] = workspaceId;
     }
   }
 

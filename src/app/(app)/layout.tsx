@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { fetchTickets, createTicketThunk, updateTicketThunk } from '@/store/slices/ticketsSlice';
-import { fetchMyWorkspace } from '@/store/slices/workspaceSlice';
+import { fetchMyWorkspace, switchWorkspace } from '@/store/slices/workspaceSlice';
 import { setCreateModalOpen } from '@/store/slices/uiSlice';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
@@ -19,15 +19,27 @@ export default function AppLayout({
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { current: workspace } = useAppSelector((state) => state.workspace);
   const { isCreateModalOpen, createInitialStatus } = useAppSelector((state) => state.ui);
   const [ticketToEdit, setTicketToEdit] = useState<JiraTicket | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    dispatch(fetchTickets({}));
-    dispatch(fetchMyWorkspace());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (mounted && isAuthenticated) {
+      void dispatch(fetchMyWorkspace());
+    }
+  }, [dispatch, isAuthenticated, mounted]);
+
+  useEffect(() => {
+    if (mounted && isAuthenticated && workspace?._id) {
+      dispatch(switchWorkspace(workspace._id));
+      void dispatch(fetchTickets({ workspaceId: workspace._id }));
+    }
+  }, [dispatch, isAuthenticated, mounted, workspace?._id]);
 
   // Auth protection check
   useEffect(() => {

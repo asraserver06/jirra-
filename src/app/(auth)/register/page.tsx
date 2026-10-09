@@ -4,11 +4,13 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { registerUser } from '@/store/slices/authSlice';
+import { googleLogin, registerUser } from '@/store/slices/authSlice';
+import { GoogleLogin } from '@react-oauth/google';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useGoogleAuthAvailability } from '@/hooks/useGoogleAuthAvailability';
 import {
   ArrowRight,
   ArrowLeft,
@@ -40,6 +42,8 @@ function RegisterContent() {
   const { status, error, isAuthenticated } = useAppSelector((state) => state.auth);
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('inviteToken');
+  const [googleSignupTicket, setGoogleSignupTicket] = useState('');
+  const googleAvailability = useGoogleAuthAvailability();
 
   // Step 1: Admin Account Details
   const [firstName, setFirstName] = useState('');
@@ -56,6 +60,21 @@ function RegisterContent() {
   const [selectedGoal, setSelectedGoal] = useState<string>('Manage team tasks');
   const [customGoal, setCustomGoal] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [googleFailed, setGoogleFailed] = useState(false);
+
+  useEffect(() => {
+    const signupTicket = searchParams.get('googleSignupTicket') || sessionStorage.getItem('google_signup_ticket');
+    if (signupTicket) {
+      setGoogleSignupTicket(signupTicket);
+      setEmail(searchParams.get('email') || '');
+      const verifiedName = searchParams.get('name') || '';
+      const [givenName = '', ...familyName] = verifiedName.split(/\s+/);
+      setFirstName(givenName);
+      setLastName(familyName.join(' '));
+      setWorkspaceName((current) => current || `${givenName || 'My'}'s Workspace`);
+      setStep(1);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -76,11 +95,11 @@ function RegisterContent() {
       setLocalError('Please enter a valid email address.');
       return;
     }
-    if (password.length < 6) {
+    if (!googleSignupTicket && password.length < 6) {
       setLocalError('Password must be at least 6 characters.');
       return;
     }
-    if (password !== confirmPassword) {
+    if (!googleSignupTicket && password !== confirmPassword) {
       setLocalError('Passwords do not match.');
       return;
     }
@@ -113,12 +132,49 @@ function RegisterContent() {
         confirmPassword,
         workspaceName: workspaceName.trim(),
         goal: finalGoal,
+        ...(googleSignupTicket ? { googleSignupTicket } : {}),
+        ...(password ? { password } : {}),
       })
     );
 
     if (registerUser.fulfilled.match(resultAction)) {
+      if (googleSignupTicket) sessionStorage.removeItem('google_signup_ticket');
       toast.success('Workspace created! Welcome to TaskFlow.');
       router.push('/board');
+    }
+  };
+
+  const handleGoogleSignup = async (credential: string) => {
+    setLocalError(null);
+    const finalGoal = customGoal.trim() ? customGoal.trim() : selectedGoal;
+    const result = await dispatch(googleLogin({
+      credential,
+      workspaceName: workspaceName.trim(),
+      goal: finalGoal,
+    }));
+
+    if (googleLogin.fulfilled.match(result)) {
+      if (result.payload.status === 'needs_signup') {
+        setGoogleSignupTicket(result.payload.signupTicket);
+        setEmail(result.payload.email);
+        const [givenName = '', ...familyName] = result.payload.name.split(/\s+/);
+        setFirstName(givenName);
+        setLastName(familyName.join(' '));
+        setStep(1);
+        return;
+      }
+      if (result.payload.status === 'needs_invite') {
+        const params = new URLSearchParams();
+        if (result.payload.inviteToken) params.set('token', result.payload.inviteToken);
+        params.set('email', result.payload.email);
+        router.push(`/invite/accept?${params.toString()}`);
+        return;
+      }
+      toast.success('Welcome to TaskFlow!');
+      router.push('/board');
+    } else {
+      setGoogleFailed(true);
+      setLocalError((result.payload as string) || 'Google sign-up failed. Please try again.');
     }
   };
 
@@ -250,12 +306,20 @@ function RegisterContent() {
                     placeholder="alex@company.com"
                     className="rounded-xl h-10"
                     required
+                    readOnly={Boolean(googleSignupTicket)}
                   />
+                  {googleSignupTicket && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      This address is verified by Google and cannot be changed.
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground mt-1">
                     We will send a welcome email and workspace confirmation to this address.
                   </p>
                 </div>
 
+                {!googleSignupTicket && (
+                  <>
                 <div>
                   <label className="text-xs font-semibold text-foreground/80 block mb-1">
                     Password <span className="text-destructive">*</span>
@@ -303,6 +367,8 @@ function RegisterContent() {
                     </button>
                   </div>
                 </div>
+                  </>
+                )}
 
                 <div className="pt-2">
                   <Button
@@ -317,6 +383,37 @@ function RegisterContent() {
 
             {/* STEP 2: WORKSPACE SETUP FORM */}
             {step === 2 && (
+              <>
+              <div className="flex flex-col items-center gap-2">
+                {googleAvailability === 'enabled' && !googleFailed ? (
+                  <>
+                    <GoogleLogin
+                      onSuccess={(response) => {
+                        if (response.credential) void handleGoogleSignup(response.credential);
+                        else {
+                          setGoogleFailed(true);
+                          setLocalError('Google did not return a sign-in credential. Please try again.');
+                        }
+                      }}
+                      onError={() => {
+                        setGoogleFailed(true);
+                        setLocalError('Google sign-up failed. You can still create your account with email and password.');
+                      }}
+                    />
+                    <p className="text-[11px] text-muted-foreground">Create your admin account with Google</p>
+                  </>
+                ) : googleAvailability === 'loading' ? (
+                  <p className="text-xs text-muted-foreground text-center">Checking Google sign-in availability…</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center">
+                    {googleAvailability === 'error'
+                      ? 'Google sign-up is temporarily unavailable. You can still create your account with email and password.'
+                      : googleFailed
+                        ? 'Google sign-up is unavailable right now. You can still create your account with email and password.'
+                        : 'Google sign-up is not configured. You can still create your account with email and password.'}
+                  </p>
+                )}
+              </div>
               <form onSubmit={handleFinalSubmit} className="space-y-5">
                 <div>
                   <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5 mb-1.5">
@@ -417,6 +514,7 @@ function RegisterContent() {
                   </Button>
                 </div>
               </form>
+              </>
             )}
           </CardContent>
 

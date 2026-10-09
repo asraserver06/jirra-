@@ -1,9 +1,17 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { Ticket } from '../models/Ticket.js';
+import { Membership } from '../models/Membership.js';
 import { sendSuccess } from '../utils/response.js';
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
-export const getSprintMetrics = async (req: Request, res: Response) => {
-  const tickets = await Ticket.find().populate('assignee', 'name email avatar role');
+export const getSprintMetrics = async (req: AuthRequest, res: Response) => {
+  const workspaceId = req.workspace!._id;
+  const userIds = await Membership.distinct('user', { workspace: workspaceId });
+  const tickets = await Ticket.find({ workspaceId }).populate({
+    path: 'assignee',
+    select: 'name email avatar',
+    match: { _id: { $in: userIds } },
+  });
 
   const total = tickets.length;
   const statusCounts = {

@@ -1,9 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import request from 'supertest';
+import supertest from 'supertest';
 import { createApp } from '../app.js';
 import { User } from '../models/User.js';
+import { Ticket } from '../models/Ticket.js';
+import { Workspace } from '../models/Workspace.js';
+import { Membership } from '../models/Membership.js';
 
 const app = createApp();
+let activeWorkspaceId = '';
+
+const request = (app: ReturnType<typeof createApp>) => {
+  const agent = supertest(app);
+  return {
+    get: (url: string) => agent.get(url).set('X-Workspace-Id', activeWorkspaceId),
+    post: (url: string) => agent.post(url).set('X-Workspace-Id', activeWorkspaceId),
+    put: (url: string) => agent.put(url).set('X-Workspace-Id', activeWorkspaceId),
+    patch: (url: string) => agent.patch(url).set('X-Workspace-Id', activeWorkspaceId),
+    delete: (url: string) => agent.delete(url).set('X-Workspace-Id', activeWorkspaceId),
+  };
+};
 
 /** Helper: seed a user and return { userId, authToken } */
 async function seedUser(overrides: Partial<{ name: string; email: string; password: string; role: string }> = {}) {
@@ -16,13 +31,16 @@ async function seedUser(overrides: Partial<{ name: string; email: string; passwo
 
   const user = await User.create(userData);
   const userId = user._id.toString();
+  const workspace = await Workspace.create({ name: 'Ticket Test Workspace' });
+  await Membership.create({ workspace: workspace._id, user: user._id, role: 'admin' });
+  activeWorkspaceId = workspace._id.toString();
 
   const loginRes = await request(app)
     .post('/api/auth/login')
     .send({ email: userData.email, password: userData.password });
 
   const authToken = loginRes.body.data.accessToken;
-  return { userId, authToken };
+  return { userId, authToken, workspaceId: workspace._id.toString() };
 }
 
 describe('Ticket Lifecycle API Integration Tests', () => {
@@ -34,6 +52,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
     const seeded = await seedUser();
     userId = seeded.userId;
     authToken = seeded.authToken;
+    activeWorkspaceId = seeded.workspaceId;
   });
 
   // ─── Create Ticket ───────────────────────────────────────────
@@ -281,6 +300,8 @@ describe('Ticket Lifecycle API Integration Tests', () => {
       const res = await request(app).get('/api/tickets').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.body.data[0].assignee).toBeDefined();
+      expect(res.body.data[0].id).toBeDefined();
+      expect(res.body.data[0].assignee.id).toBe(userId);
       expect(res.body.data[0].assignee.name).toBe('QA Master');
       expect(res.body.data[0].assignee.email).toBe('qa.master@jira.dev');
     });
@@ -508,5 +529,65 @@ describe('Ticket Lifecycle API Integration Tests', () => {
 
       expect(res.status).toBe(404);
     });
+  });
+
+  it('isolates ticket reads and deletes between two workspaces', async () => {
+    const adminB = await supertest(app).post('/api/auth/signup').send({
+      name: 'Jasmine Admin',
+      email: 'jasmine.admin@example.com',
+      password: 'password123',
+      workspaceName: 'Jasmine workspace',
+    });
+    expect(adminB.status).toBe(201);
+    const workspaceBId = adminB.body.data.workspace.id;
+    const tokenB = adminB.body.data.accessToken;
+
+    const ticketInWorkspaceA = await request(app)
+      .post('/api/tickets')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ title: 'Asra private ticket', assignee: userId, workspaceId: workspaceBId });
+    expect(ticketInWorkspaceA.status).toBe(201);
+    expect(ticketInWorkspaceA.body.data.workspaceId).toBe(activeWorkspaceId);
+    const ticketId = ticketInWorkspaceA.body.data.id;
+
+    const listB = await supertest(app)
+      .get('/api/tickets')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .set('X-Workspace-Id', workspaceBId);
+    expect(listB.status).toBe(200);
+    expect(listB.body.data).toHaveLength(0);
+
+    const forbiddenCrossWorkspace = await supertest(app)
+      .get('/api/tickets')
+      .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Workspace-Id', workspaceBId);
+    expect(forbiddenCrossWorkspace.status).toBe(403);
+
+    const hiddenFromB = await supertest(app)
+      .get(`/api/tickets/${ticketId}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .set('X-Workspace-Id', workspaceBId);
+    expect(hiddenFromB.status).toBe(404);
+
+    const updateFromB = await supertest(app)
+      .put(`/api/tickets/${ticketId}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .set('X-Workspace-Id', workspaceBId)
+      .send({ title: 'Cross-workspace overwrite' });
+    expect(updateFromB.status).toBe(404);
+
+    const deleteFromB = await supertest(app)
+      .delete(`/api/tickets/${ticketId}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .set('X-Workspace-Id', workspaceBId);
+    expect(deleteFromB.status).toBe(404);
+
+    const stillInA = await supertest(app)
+      .get(`/api/tickets/${ticketId}`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Workspace-Id', activeWorkspaceId);
+    expect(stillInA.status).toBe(200);
+    expect(stillInA.body.data.title).toBe('Asra private ticket');
+    expect(await Ticket.countDocuments()).toBe(1);
   });
 });

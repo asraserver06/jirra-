@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useGoogleAuthAvailability } from '@/hooks/useGoogleAuthAvailability';
 import { ArrowRight, AlertCircle, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
 // Accept the pending invite after logging in
 async function acceptPendingInvite(token: string, accessToken: string): Promise<{ success: boolean; message?: string }> {
   try {
@@ -41,6 +41,8 @@ function LoginContent() {
 
   const [email, setEmail] = useState(emailParam || '');
   const [password, setPassword] = useState('');
+  const googleAvailability = useGoogleAuthAvailability();
+  const [googleFailed, setGoogleFailed] = useState(false);
 
   React.useEffect(() => {
     if (emailParam) {
@@ -119,19 +121,58 @@ function LoginContent() {
             )}
 
             <div className="flex justify-center">
+              {googleAvailability === 'enabled' && !googleFailed ? (
               <GoogleLogin
                 onSuccess={async (credentialResponse) => {
                   if (credentialResponse.credential) {
-                    const res = await dispatch(googleLogin(credentialResponse.credential));
+                    const res = await dispatch(googleLogin({
+                      credential: credentialResponse.credential,
+                      inviteToken: inviteToken || undefined,
+                    }));
                     if (googleLogin.fulfilled.match(res)) {
-                      await afterLogin(res.payload.accessToken);
+                      if (res.payload.status === 'needs_signup') {
+                        window.sessionStorage.setItem('google_signup_ticket', res.payload.signupTicket);
+                        const params = new URLSearchParams({
+                          email: res.payload.email,
+                          name: res.payload.name,
+                        });
+                        router.push(`/register?${params.toString()}`);
+                      } else if (res.payload.status === 'needs_invite') {
+                        const params = new URLSearchParams();
+                        if (res.payload.inviteToken) params.set('token', res.payload.inviteToken);
+                        params.set('email', res.payload.email);
+                        router.push(`/invite/accept?${params.toString()}`);
+                      } else if (inviteToken) {
+                        toast.success('Invitation accepted! Welcome to the workspace.');
+                        router.push('/board');
+                      } else {
+                        await afterLogin(res.payload.accessToken);
+                      }
+                    } else {
+                      setGoogleFailed(true);
+                      toast.error((res.payload as string) || 'Google sign-in failed. Please try again.');
                     }
+                  } else {
+                    setGoogleFailed(true);
+                    toast.error('Google did not return a sign-in credential. Please try again.');
                   }
                 }}
                 onError={() => {
-                  console.error('Google Sign-In failed');
+                  setGoogleFailed(true);
+                  toast.error('Google sign-in failed. You can still sign in with email and password.');
                 }}
               />
+              ) : googleAvailability === 'loading' ? (
+                <p className="text-xs text-muted-foreground text-center">Checking Google sign-in availability…</p>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center">
+                  {googleAvailability === 'error'
+                    ? 'Google sign-in is temporarily unavailable. You can still sign in with email and password.'
+                    : googleFailed
+                      ? 'Google sign-in is unavailable right now. You can still sign in with email and password.'
+                      : 'Google sign-in is not configured. You can still sign in with email and password.'}
+                </p>
+              )}
             </div>
 
             <div className="relative my-4">

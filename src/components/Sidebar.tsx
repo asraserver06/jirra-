@@ -15,13 +15,14 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { toggleSidebar } from '@/store/slices/uiSlice';
+import { switchWorkspace } from '@/store/slices/workspaceSlice';
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const { sidebarCollapsed } = useAppSelector((state) => state.ui);
   const { tickets } = useAppSelector((state) => state.tickets);
-  const { current: workspace, myRole } = useAppSelector((state) => state.workspace);
+  const { current: workspace, myRole, workspaces } = useAppSelector((state) => state.workspace);
 
   const todoCount = tickets.filter((t) => t.status === 'todo').length;
   const isAdmin = myRole === 'admin';
@@ -51,6 +52,21 @@ export const Sidebar: React.FC = () => {
             )}
           </div>
         </div>
+        {!sidebarCollapsed && workspaces.length > 1 && (
+          <div className="px-3 py-2 border-b border-border/60">
+            <label htmlFor="workspace-switcher" className="sr-only">Switch workspace</label>
+            <select
+              id="workspace-switcher"
+              value={workspace?._id || ''}
+              onChange={(event) => dispatch(switchWorkspace(event.target.value))}
+              className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground"
+            >
+              {workspaces.map((item) => (
+                <option key={item._id} value={item._id}>{item.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Navigation Items */}
         <nav className="p-2 space-y-1">

@@ -72,6 +72,7 @@ export const registerUser = createAsyncThunk(
       goal?: string;
       useCase?: string;
       inviteToken?: string;
+      googleSignupTicket?: string;
     },
     { rejectWithValue }
   ) => {
@@ -89,9 +90,13 @@ export const registerUser = createAsyncThunk(
 
 export const googleLogin = createAsyncThunk(
   'auth/googleLogin',
-  async (credential: string, { rejectWithValue }) => {
+  async (
+    input: string | { credential: string; inviteToken?: string; workspaceName?: string; goal?: string },
+    { rejectWithValue }
+  ) => {
     try {
-      const response = await api.post('/api/auth/google', { credential });
+      const body = typeof input === 'string' ? { credential: input } : input;
+      const response = await api.post('/api/auth/google', body);
       if (!response.data.success) {
         return rejectWithValue(response.data.message || 'Google authentication failed');
       }
@@ -194,6 +199,9 @@ export const authSlice = createSlice({
     });
     builder.addCase(googleLogin.fulfilled, (state, action) => {
       state.status = 'succeeded';
+      if (action.payload?.status === 'needs_signup' || action.payload?.status === 'needs_invite') {
+        return;
+      }
       state.user = action.payload.user;
       state.token = action.payload.accessToken;
       state.isAuthenticated = true;

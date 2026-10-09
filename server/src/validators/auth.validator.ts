@@ -8,7 +8,7 @@ export const signupSchema = z
         firstName: z.string().max(50).optional(),
         lastName: z.string().max(50).optional(),
         email: z.string().trim().toLowerCase().email('Please provide a valid email address'),
-        password: z.string().min(6, 'Password must be at least 6 characters long'),
+        password: z.string().optional(),
         confirmPassword: z.string().optional(),
         workspaceName: z.string().max(100).optional(),
         organizationName: z.string().max(100).optional(),
@@ -17,6 +17,7 @@ export const signupSchema = z
         role: z.string().optional(),
         inviteToken: z.string().optional(),
         avatar: z.string().url().optional(),
+        googleSignupTicket: z.string().min(1).optional(),
       })
       .refine(
         (data) => {
@@ -32,6 +33,10 @@ export const signupSchema = z
           return data.password === data.confirmPassword;
         },
         { message: 'Passwords do not match', path: ['confirmPassword'] }
+      )
+      .refine(
+        (data) => Boolean(data.googleSignupTicket) || Boolean(data.password && data.password.length >= 6),
+        { message: 'Password must be at least 6 characters long', path: ['password'] }
       )
       .refine(
         (data) => {
@@ -51,6 +56,15 @@ export const loginSchema = z.object({
   body: z.object({
     email: z.string().trim().toLowerCase().email('Please enter a valid email address'),
     password: z.string().min(1, 'Password is required'),
+  }),
+});
+
+export const googleAuthSchema = z.object({
+  body: z.object({
+    credential: z.string().min(1, 'Google credential is required'),
+    inviteToken: z.string().optional(),
+    workspaceName: z.string().trim().max(100).optional(),
+    goal: z.string().trim().max(250).optional(),
   }),
 });
 

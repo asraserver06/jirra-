@@ -57,7 +57,12 @@ function AcceptInviteContent() {
   // Validate token on load
   useEffect(() => {
     if (!token) {
-      setValidatingError('Missing invitation token. Please check the link from your email.');
+      const invitedEmail = searchParams.get('email');
+      setValidatingError(
+        invitedEmail
+          ? `A workspace invitation exists for ${invitedEmail}. Please open the original invitation email link to continue.`
+          : 'Missing invitation token. Please check the link from your email.'
+      );
       setLoading(false);
       return;
     }
@@ -82,7 +87,7 @@ function AcceptInviteContent() {
     };
 
     validateToken();
-  }, [token]);
+  }, [searchParams, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

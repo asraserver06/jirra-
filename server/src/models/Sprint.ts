@@ -1,6 +1,7 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export interface ISprint extends Document {
+  workspaceId: Types.ObjectId;
   name: string;
   goal: string;
   startDate: Date;
@@ -10,6 +11,12 @@ export interface ISprint extends Document {
 
 const SprintSchema = new Schema<ISprint>(
   {
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workspace',
+      required: true,
+      index: true,
+    },
     name: {
       type: String,
       required: true,

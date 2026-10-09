@@ -12,6 +12,7 @@ export interface IComment {
 }
 
 export interface ITicket extends Document {
+  workspaceId: Types.ObjectId;
   key: string;
   title: string;
   description: string;
@@ -59,12 +60,16 @@ const CommentSchema = new Schema<IComment>(
 
 const TicketSchema = new Schema<ITicket>(
   {
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workspace',
+      required: true,
+      index: true,
+    },
     key: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
-      index: true,
     },
     title: {
       type: String,
@@ -134,7 +139,11 @@ const TicketSchema = new Schema<ITicket>(
   }
 );
 
-// Compound Index for high-performance board queries & sorting
+TicketSchema.index({ workspaceId: 1, key: 1 }, {
+  unique: true,
+  partialFilterExpression: { workspaceId: { $exists: true } },
+});
 TicketSchema.index({ status: 1, priority: 1, createdAt: -1 });
+TicketSchema.index({ workspaceId: 1, status: 1, priority: 1, createdAt: -1 });
 
 export const Ticket = mongoose.model<ITicket>('Ticket', TicketSchema);

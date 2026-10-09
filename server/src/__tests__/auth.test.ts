@@ -40,7 +40,8 @@ describe('Auth API Integration Tests', () => {
 
       const tickets = await request(app)
         .get('/api/tickets')
-        .set('Authorization', `Bearer ${res.body.data.accessToken}`);
+        .set('Authorization', `Bearer ${res.body.data.accessToken}`)
+        .set('X-Workspace-Id', res.body.data.workspace.id);
       expect(tickets.status).toBe(200);
       expect(tickets.body.data).toEqual([]);
     });
