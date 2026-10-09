@@ -7,9 +7,12 @@ import { ENV } from './config/env.js';
 import authRoutes from './routes/auth.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
+import workspaceRoutes from './routes/workspace.routes.js';
+import inviteRoutes from './routes/invite.routes.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 import { AppError } from './utils/appError.js';
 import { sendSuccess } from './utils/response.js';
+import { sendTestEmail } from './services/email.services.js';
 
 export const createApp = () => {
   const app = express();
@@ -83,10 +86,43 @@ export const createApp = () => {
     sendSuccess(res, { status: 'healthy', uptime: process.uptime() }, 'TaskFlow API is running smoothly');
   });
 
+  // Temporary test-email route for diagnostics (STEP 3)
+  app.get('/api/test-email', async (req: Request, res: Response) => {
+    const to = (req.query.to as string) || ENV.SMTP_USER;
+    if (!to) {
+      return res.status(400).json({
+        success: false,
+        message: 'Recipient email address is required (use ?to=email@example.com)',
+      });
+    }
+
+    try {
+      const result = await sendTestEmail(to);
+      return res.json({
+        success: true,
+        message: `Diagnostic test email sent successfully to ${to}`,
+        result,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send test email',
+        error: {
+          message: err?.message,
+          code: err?.code,
+          command: err?.command,
+          response: err?.response,
+        },
+      });
+    }
+  });
+
   // Mount API Routers
   app.use('/api/auth', authRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/workspaces', workspaceRoutes);
+  app.use('/api/invites', inviteRoutes);
 
   // 404 Fallback
   app.all('*', (req: Request, res: Response, next: NextFunction) => {

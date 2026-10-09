@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Layers } from 'lucide-react';
 import { JiraTicket, TicketPriority, TicketStatus, TicketType, User } from '../types/jira';
-import { MOCK_USERS } from '../data/mockData';
+
 import { RichTextEditor } from './RichTextEditor';
 import { Button } from './ui/button';
+import { useAppSelector } from '@/store';
 
 interface TicketModalProps {
   isOpen: boolean;
@@ -28,7 +29,9 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   const [status, setStatus] = useState<TicketStatus>(initialStatus);
   const [priority, setPriority] = useState<TicketPriority>('high');
   const [type, setType] = useState<TicketType>('story');
-  const [assignee, setAssignee] = useState<User>(MOCK_USERS[0]);
+  const { user } = useAppSelector((state) => state.auth);
+  const defaultAssignee: User = { id: user?.id || '', name: user?.name || 'Unassigned', email: user?.email || '', avatar: user?.avatar || '', role: 'member' };
+  const [assignee, setAssignee] = useState<User>(defaultAssignee);
   const [storyPoints, setStoryPoints] = useState<number>(3);
   const [fontFamily, setFontFamily] = useState<string>('Inter, sans-serif');
   const [alignment, setAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('left');
@@ -46,11 +49,11 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       if (ticketToEdit.alignment) setAlignment(ticketToEdit.alignment);
     } else {
       setTitle('');
-      setDescription('<p>Write details about this issue...</p>');
+      setDescription('');
       setStatus(initialStatus);
       setPriority('high');
       setType('story');
-      setAssignee(MOCK_USERS[0]);
+      setAssignee(defaultAssignee);
       setStoryPoints(3);
     }
   }, [ticketToEdit, initialStatus, isOpen]);
@@ -63,14 +66,14 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
     onSave({
       id: ticketToEdit ? ticketToEdit.id : undefined,
-      key: ticketToEdit ? ticketToEdit.key : `PROJ-${Math.floor(100 + Math.random() * 900)}`,
+      key: ticketToEdit?.key,
       title,
       description,
       status,
       priority,
       type,
       assignee,
-      reporter: ticketToEdit ? ticketToEdit.reporter : MOCK_USERS[1],
+      reporter: ticketToEdit?.reporter,
       storyPoints,
       fontFamily,
       alignment,
@@ -180,24 +183,21 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Assignee</label>
                 <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-                  {MOCK_USERS.map((usr) => {
-                    const isSelected = assignee.id === usr.id;
-                    return (
-                      <button
-                        key={usr.id}
-                        type="button"
-                        onClick={() => setAssignee(usr)}
-                        className={`w-full flex items-center gap-2 p-1.5 rounded-xl text-left transition-all ${
-                          isSelected
-                            ? 'bg-primary/10 border border-primary/30 text-primary font-semibold'
-                            : 'hover:bg-muted/70 text-foreground/80'
-                        }`}
-                      >
-                        <img src={usr.avatar} alt={usr.name} className="w-5 h-5 rounded-full object-cover" />
-                        <span className="text-xs truncate">{usr.name}</span>
-                      </button>
-                    );
-                  })}
+                  {assignee?.name ? (
+                    <div className="flex items-center gap-2 p-1.5 rounded-xl bg-primary/10 border border-primary/30">
+                      {assignee.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={assignee.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                      ) : (
+                        <span aria-hidden="true" className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                          {assignee.name.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="text-xs font-semibold text-primary truncate">{assignee.name}</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No assignee — assigned to you on save.</p>
+                  )}
                 </div>
               </div>
 

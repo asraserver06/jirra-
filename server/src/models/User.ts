@@ -1,15 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export type UserRole = 'admin' | 'lead' | 'developer' | 'viewer';
-
 export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
   googleId?: string;
   authProvider: 'local' | 'google';
-  role: UserRole;
   avatar: string;
   createdAt: Date;
   updatedAt: Date;
@@ -48,14 +45,9 @@ const UserSchema = new Schema<IUser>(
       enum: ['local', 'google'],
       default: 'local',
     },
-    role: {
-      type: String,
-      enum: ['admin', 'lead', 'developer', 'viewer'],
-      default: 'developer',
-    },
     avatar: {
       type: String,
-      default: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      default: '',
     },
   },
   {

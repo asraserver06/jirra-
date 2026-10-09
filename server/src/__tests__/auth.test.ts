@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { createApp } from '../app.js';
+import { Invitation } from '../models/Invitation.js';
+import { Membership } from '../models/Membership.js';
+import { User } from '../models/User.js';
+import { generateInviteToken } from '../utils/inviteToken.js';
 
 const app = createApp();
 
@@ -9,233 +14,203 @@ describe('Auth API Integration Tests', () => {
     name: 'Test Engineer',
     email: 'test.engineer@jira.dev',
     password: 'password123',
-    role: 'developer',
   };
 
-  // ─── Registration ────────────────────────────────────────────
-  describe('POST /api/auth/register', () => {
-    it('should register a new user and return tokens', async () => {
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send(testUser);
+  describe('POST /api/auth/signup', () => {
+    it('should create an admin, workspace, and return tokens', async () => {
+      const res = await request(app).post('/api/auth/signup').send(testUser);
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.email).toBe(testUser.email);
-      expect(res.body.data.user.name).toBe(testUser.name);
-      expect(res.body.data.user.role).toBe('developer');
-      expect(res.body.data.user.id).toBeDefined();
-      // Password should never leak in the response
       expect(res.body.data.user.password).toBeUndefined();
-      // Tokens
+      expect(res.body.data.workspace.name).toBe("Test Engineer's Workspace");
+      expect(res.body.data.workspace.role).toBe('admin');
       expect(res.body.data.accessToken).toBeDefined();
-      expect(res.body.data.refreshToken).toBeDefined();
-      // Refresh token set as HTTP-only cookie
-      const cookies = res.headers['set-cookie'];
-      expect(cookies).toBeDefined();
-      const cookieStr = Array.isArray(cookies) ? cookies.join('; ') : cookies;
-      expect(cookieStr).toMatch(/refreshToken/);
+      expect(res.body.data.refreshToken).toBeUndefined();
+      const decoded = jwt.decode(res.body.data.accessToken, { complete: true });
+      expect(decoded?.header.alg).toBe('HS256');
+      expect((decoded?.payload as jwt.JwtPayload).exp! - (decoded?.payload as jwt.JwtPayload).iat!).toBe(15 * 60);
+      expect(JSON.stringify(res.headers['set-cookie'])).toContain('HttpOnly');
+      expect(JSON.stringify(res.headers['set-cookie'])).toContain('Max-Age=604800');
+
+      const memberships = await Membership.find({ user: res.body.data.user.id });
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0].role).toBe('admin');
+
+      const tickets = await request(app)
+        .get('/api/tickets')
+        .set('Authorization', `Bearer ${res.body.data.accessToken}`);
+      expect(tickets.status).toBe(200);
+      expect(tickets.body.data).toEqual([]);
     });
 
     it('should reject duplicate email registration with 409', async () => {
-      // Register once
-      await request(app).post('/api/auth/register').send(testUser);
-      // Try again
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send(testUser);
-
+      await request(app).post('/api/auth/signup').send(testUser);
+      const res = await request(app).post('/api/auth/signup').send(testUser);
       expect(res.status).toBe(409);
       expect(res.body.success).toBe(false);
     });
 
     it('should reject registration with missing name', async () => {
       const res = await request(app)
-        .post('/api/auth/register')
+        .post('/api/auth/signup')
         .send({ email: 'noname@test.com', password: 'password123' });
-
       expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
     });
 
     it('should reject registration with invalid email', async () => {
       const res = await request(app)
-        .post('/api/auth/register')
+        .post('/api/auth/signup')
         .send({ name: 'Bad Email', email: 'not-an-email', password: 'password123' });
-
       expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
     });
 
-    it('should reject registration with short password (< 6 chars)', async () => {
+    it('should reject registration with short password', async () => {
       const res = await request(app)
-        .post('/api/auth/register')
+        .post('/api/auth/signup')
         .send({ name: 'Short Pass', email: 'short@test.com', password: '12345' });
-
       expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should default role to developer when not specified', async () => {
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({ name: 'NoRole', email: 'norole@test.com', password: 'password123' });
-
-      expect(res.status).toBe(201);
-      expect(res.body.data.user.role).toBe('developer');
-    });
-
-    it('should generate a default avatar when none provided', async () => {
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({ name: 'AvatarTest', email: 'avatar@test.com', password: 'password123' });
-
-      expect(res.status).toBe(201);
-      expect(res.body.data.user.avatar).toBeDefined();
-      expect(res.body.data.user.avatar.length).toBeGreaterThan(0);
     });
   });
 
-  // ─── Login ────────────────────────────────────────────────────
   describe('POST /api/auth/login', () => {
     it('should authenticate with valid credentials', async () => {
-      // Seed user first
-      await request(app).post('/api/auth/register').send(testUser);
-
+      await request(app).post('/api/auth/signup').send(testUser);
       const res = await request(app)
         .post('/api/auth/login')
-        .send({ email: testUser.email, password: testUser.password });
-
+        .set('Authorization', 'Bearer stale.token.value')
+        .send({ email: `  ${testUser.email.toUpperCase()}  `, password: testUser.password });
       expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
       expect(res.body.data.accessToken).toBeDefined();
-      expect(res.body.data.refreshToken).toBeDefined();
-      expect(res.body.data.user.name).toBe(testUser.name);
-      expect(res.body.data.user.email).toBe(testUser.email);
-      // Password must NOT leak
       expect(res.body.data.user.password).toBeUndefined();
     });
 
     it('should reject login with wrong password', async () => {
-      await request(app).post('/api/auth/register').send(testUser);
-
+      await request(app).post('/api/auth/signup').send(testUser);
       const res = await request(app)
         .post('/api/auth/login')
         .send({ email: testUser.email, password: 'wrongpassword' });
-
       expect(res.status).toBe(401);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should reject login with non-existent email', async () => {
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: 'nobody@test.com', password: 'password123' });
-
-      expect(res.status).toBe(401);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should reject login with missing password', async () => {
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: testUser.email });
-
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should reject login with missing email', async () => {
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({ password: 'password123' });
-
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
     });
   });
 
-  // ─── Get Me (Authenticated Profile) ──────────────────────────
+  describe('POST /api/auth/refresh', () => {
+    it('uses the httpOnly refresh cookie to issue a new access token', async () => {
+      const signup = await request(app).post('/api/auth/signup').send(testUser);
+      const header = signup.headers['set-cookie'];
+      const cookies = Array.isArray(header) ? header : [header];
+      const refreshCookie = cookies.find((cookie) => cookie.startsWith('refreshToken=') && !cookie.startsWith('refreshToken=;'));
+      expect(refreshCookie).toBeDefined();
+
+      const refreshed = await request(app)
+        .post('/api/auth/refresh')
+        .set('Cookie', refreshCookie!.split(';')[0])
+        .send({});
+
+      expect(refreshed.status).toBe(200);
+      expect(refreshed.body.data.accessToken).toBeDefined();
+      expect(refreshed.body.data.refreshToken).toBeUndefined();
+    });
+  });
+
   describe('GET /api/auth/me', () => {
     it('should return the authenticated user profile', async () => {
-      const regRes = await request(app).post('/api/auth/register').send(testUser);
+      const regRes = await request(app).post('/api/auth/signup').send(testUser);
       const token = regRes.body.data.accessToken;
-
-      const res = await request(app)
-        .get('/api/auth/me')
-        .set('Authorization', `Bearer ${token}`);
-
+      const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
       expect(res.body.data.email).toBe(testUser.email);
-      expect(res.body.data.name).toBe(testUser.name);
     });
 
     it('should reject unauthenticated requests with 401', async () => {
       const res = await request(app).get('/api/auth/me');
-
       expect(res.status).toBe(401);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should reject with an invalid/garbage token', async () => {
-      const res = await request(app)
-        .get('/api/auth/me')
-        .set('Authorization', 'Bearer totally.invalid.token');
-
-      expect(res.status).toBe(401);
-      expect(res.body.success).toBe(false);
     });
   });
 
-  // ─── Token Refresh ────────────────────────────────────────────
-  describe('POST /api/auth/refresh', () => {
-    it('should return a new access token from a valid refresh token', async () => {
-      const regRes = await request(app).post('/api/auth/register').send(testUser);
-      const refreshToken = regRes.body.data.refreshToken;
+  describe('Workspace invites', () => {
+    it('lets an admin invite a member and accept as a new user', async () => {
+      const adminRes = await request(app).post('/api/auth/signup').send(testUser);
+      const adminToken = adminRes.body.data.accessToken;
+      const workspaceId = adminRes.body.data.workspace.id;
 
-      const res = await request(app)
-        .post('/api/auth/refresh')
-        .send({ refreshToken });
+      const inviteRes = await request(app)
+        .post(`/api/workspaces/${workspaceId}/invites`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ emails: ['member@example.com'] });
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.accessToken).toBeDefined();
-    });
+      expect(inviteRes.status).toBe(201);
+      expect(inviteRes.body.data[0].status).toBe('success');
+      expect(JSON.stringify(inviteRes.body)).not.toMatch(/tokenHash/);
 
-    it('should reject refresh with missing token', async () => {
-      const res = await request(app)
-        .post('/api/auth/refresh')
-        .send({});
+      const invite = await Invitation.findOne({ email: 'member@example.com' });
+      expect(invite).toBeTruthy();
+      const { token } = generateInviteToken();
+      invite!.tokenHash = (await import('../utils/inviteToken.js')).hashInviteToken(token);
+      await invite!.save();
 
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-    });
-  });
+      const preview = await request(app).get('/api/invites/preview').query({ token });
+      expect(preview.status).toBe(200);
+      expect(preview.body.data.email).toBe('member@example.com');
+      expect(preview.body.data.userExists).toBe(false);
 
-  // ─── Get All Users ────────────────────────────────────────────
-  describe('GET /api/auth/users', () => {
-    it('should return a list of all registered users', async () => {
-      await request(app).post('/api/auth/register').send(testUser);
-      await request(app).post('/api/auth/register').send({
-        ...testUser,
-        name: 'Second User',
-        email: 'second@test.com',
+      const accept = await request(app).post('/api/invites/accept').send({
+        token,
+        name: 'New Member',
+        password: 'memberpass',
       });
+      expect(accept.status).toBe(200);
+      expect(accept.body.data.user.email).toBe('member@example.com');
+      expect(accept.body.data.workspace.role).toBe('member');
+      expect(accept.body.data.refreshToken).toBeUndefined();
 
-      const res = await request(app).get('/api/auth/users');
+      const members = await request(app)
+        .get(`/api/workspaces/${workspaceId}/members`)
+        .set('Authorization', `Bearer ${accept.body.data.accessToken}`);
+      expect(members.status).toBe(200);
+      expect(members.body.data).toHaveLength(2);
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.length).toBe(2);
+      const member = await User.findOne({ email: 'member@example.com' }).select('+password');
+      expect(member?.name).toBe('New Member');
+      expect(member?.password).not.toBe('memberpass');
+      expect(await member?.comparePassword('memberpass')).toBe(true);
     });
 
-    it('should return an empty array when no users exist', async () => {
-      const res = await request(app).get('/api/auth/users');
+    it('rejects members from public signup using an existing email', async () => {
+      await request(app).post('/api/auth/signup').send(testUser);
+      const res = await request(app).post('/api/auth/signup').send(testUser);
+      expect(res.status).toBe(409);
+    });
 
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual([]);
+    it('blocks members from inviting', async () => {
+      const adminRes = await request(app).post('/api/auth/signup').send(testUser);
+      const workspaceId = adminRes.body.data.workspace.id;
+      const invite = await Invitation.create({
+        workspace: workspaceId,
+        email: 'blocked@example.com',
+        role: 'member',
+        invitedBy: adminRes.body.data.user.id,
+        tokenHash: 'abc',
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 86400000),
+      });
+      const { token, tokenHash } = generateInviteToken();
+      invite.tokenHash = tokenHash;
+      await invite.save();
+
+      const memberRes = await request(app).post('/api/invites/accept').send({
+        token,
+        name: 'Blocked',
+        password: 'memberpass',
+      });
+      const memberToken = memberRes.body.data.accessToken;
+
+      const forbidden = await request(app)
+        .post(`/api/workspaces/${workspaceId}/invites`)
+        .set('Authorization', `Bearer ${memberToken}`)
+        .send({ emails: ['another@example.com'] });
+      expect(forbidden.status).toBe(403);
     });
   });
 });

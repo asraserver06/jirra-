@@ -49,11 +49,11 @@ graph TD
 - [x] **Theming & Dark Mode**: Seamless toggle between classic Atlassian Blue and sleek Dark mode via CSS variables (`next-themes`).
 - [x] **Redux Toolkit State Management**: Hydration-safe client provider (`StoreProvider`) holding optimistic Kanban state, active filters, and session auth.
 - [x] **Core Product Views**:
-  - **Kanban Board** (`/board`): Drag & drop column transitions (`TO DO`, `IN PROGRESS`, `IN REVIEW`, `DONE`), quick issue creator, sprint progress bar.
+  - **Kanban Board** (`/board`): Drag & drop column transitions (`TO DO`, `IN PROGRESS`, `IN REVIEW`, `DONE`), quick issue creator, workspace progress.
   - **All Issues Table** (`/list`): Multi-column sorting (`Key`, `Title`, `Priority`, `Status`, `Story Points`), keyword search, and pagination.
   - **Dynamic Issue Detail** (`/tickets/[id]`): Rich text WYSIWYG editor, discussion comments stream, assignee/reporter selectors, and status switcher.
-  - **Sprint Dashboard** (`/dashboard`): Velocity metrics, completion percentages, WIP gauges, and team workload allocation.
-  - **Authentication Screens** (`/login`, `/register`): 1-click demo account quick logins, role selection (`admin`, `lead`, `developer`, `viewer`), and error feedback.
+  - **Workspace Dashboard** (`/dashboard`): Issue completion, WIP, story-point metrics, and team workload from API data, with an empty state for new workspaces.
+  - **Authentication Screens** (`/login`, `/register`): Email and password authentication with clear error feedback.
 
 ### 🛡️ Week 4 — Backend (Express & MongoDB)
 - [x] **Express REST Architecture**: Decoupled routes, controllers, services, centralized error handling with `asyncHandler`, and standard response envelopes.
@@ -83,32 +83,18 @@ cd server && npm install && cd ..
 ```
 
 ### 2. Configure MongoDB URL
-Open `server/.env` (or copy from `server/.env.example`):
+Open the repository-root `.env` (or copy from `.env.example`):
 ```env
 MONGODB_URI=your-mongodb-atlas-url-or-local-url
 PORT=5000
 JWT_SECRET=your-secure-jwt-secret-string
 JWT_REFRESH_SECRET=your-secure-refresh-jwt-secret
 ```
-> **Note**: If `MONGODB_URI` is left blank or points to a non-running local port, the backend **automatically starts an in-memory MongoDB engine**, so the entire application runs instantly without crashing!
+Both secrets are required and must be different; access tokens expire after 15 minutes and refresh tokens after 7 days. The refresh token is only stored in an HTTP-only cookie.
+The API always loads the repository-root `.env` first, regardless of its working directory. `server/.env` is only used as a fallback if the root file is absent.
+> **Note**: When MongoDB is unavailable, development can use an in-memory database. Its records are temporary and are lost when the API process stops. Configure a persistent `MONGODB_URI` for data you need to retain.
 
-### 3. Seed Realistic Jira Data
-Populate realistic users, an active sprint, and 14+ issues with rich markdown descriptions:
-```bash
-npm run seed
-```
-
-**Pre-seeded Demo Credentials:**
-| Name | Email | Password | Role |
-| :--- | :--- | :--- | :--- |
-| **Alex Morgan** | `alex.morgan@acme-jira.io` | `jira1234` | Admin |
-| **Sarah Connor** | `sarah.connor@acme-jira.io` | `jira1234` | Tech Lead |
-| **Marcus Vance** | `marcus.vance@acme-jira.io` | `jira1234` | Developer |
-| **Elena Rostova** | `elena.rostova@acme-jira.io` | `jira1234` | Developer |
-
-*(You can also click the 1-click Demo buttons directly on the `/login` screen!)*
-
-### 4. Run the Full-Stack Application
+### 3. Run the Full-Stack Application
 Start both the Next.js frontend (`:3000`) and the Express REST API (`:5000`) with one command:
 ```bash
 npm run dev
@@ -118,6 +104,14 @@ Visit:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:5000/api](http://localhost:5000/api)
 - **Health Check**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+
+Create an administrator account at `/register`. New workspaces start empty and persist only API/database records.
+
+### Reset a development database
+This destructive command drops every collection in the configured MongoDB database. It refuses to run in production and requires explicit confirmation:
+```bash
+npm run reset-db -- --confirm
+```
 
 ---
 
@@ -132,7 +126,7 @@ Tests cover:
 - Duplicate email prevention (409)
 - Authentication and token issuance
 - Invalid credential rejection (401)
-- Ticket sequential key generation (`PROJ-101`)
+- Ticket sequential key generation
 - Zod edge validation on ticket writes (400 Bad Request)
 - Ticket pagination and filtering
 - Drag-and-drop status transitions

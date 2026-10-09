@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { JiraTicket, TicketStatus } from '@/types/jira';
-import { INITIAL_TICKETS } from '@/data/mockData';
-
+import { api, apiErrorMessage } from '@/lib/api';
+import { logout } from './authSlice';
 export interface TicketsState {
   tickets: JiraTicket[];
   selectedTicket: JiraTicket | null;
@@ -15,38 +15,17 @@ export interface TicketsState {
   };
 }
 
-const getStoredTickets = (): JiraTicket[] => {
-  if (typeof window === 'undefined') return INITIAL_TICKETS;
-  try {
-    const saved = localStorage.getItem('jira_tickets_data');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    console.error('Failed to load tickets from localStorage', e);
-  }
-  return INITIAL_TICKETS;
-};
-
 const initialState: TicketsState = {
-  tickets: getStoredTickets(),
+  tickets: [],
   selectedTicket: null,
   status: 'idle',
   error: null,
   pagination: {
     page: 1,
     limit: 50,
-    total: INITIAL_TICKETS.length,
+    total: 0,
     totalPages: 1,
   },
-};
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-const getAuthHeaders = () => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('jira_token') : null;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
 };
 
 export const fetchTickets = createAsyncThunk(
@@ -62,17 +41,15 @@ export const fetchTickets = createAsyncThunk(
       if (params.search) searchParams.append('search', params.search);
       if (params.page) searchParams.append('page', params.page.toString());
 
-      const url = `${API_BASE}/api/tickets?${searchParams.toString()}`;
-      const res = await fetch(url, { headers: getAuthHeaders() });
-      const json = await res.json();
+      const response = await api.get(`/api/tickets?${searchParams.toString()}`);
+      const json = response.data;
 
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return rejectWithValue(json.message || 'Failed to fetch tickets');
       }
       return json; // { data: tickets, pagination: {...} }
-    } catch {
-      // Graceful fallback to local tickets
-      return { data: getStoredTickets(), pagination: { page: 1, limit: 50, total: 10, totalPages: 1 } };
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Failed to fetch issues.'));
     }
   }
 );
@@ -81,33 +58,18 @@ export const createTicketThunk = createAsyncThunk(
   'tickets/createTicket',
   async (ticketData: Partial<JiraTicket>, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/tickets`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(ticketData),
+      const response = await api.post('/api/tickets', {
+        ...ticketData,
+        assignee: ticketData.assignee?.id,
+        reporter: ticketData.reporter?.id,
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      const json = response.data;
+      if (!json.success) {
         return rejectWithValue(json.message || 'Failed to create ticket');
       }
       return json.data;
-    } catch {
-      // Fallback local create
-      const newTicket: JiraTicket = {
-        id: `t-${Date.now()}`,
-        key: `PROJ-${Math.floor(100 + Math.random() * 900)}`,
-        title: ticketData.title || 'Untitled Ticket',
-        description: ticketData.description || '',
-        status: ticketData.status || 'todo',
-        priority: ticketData.priority || 'medium',
-        type: ticketData.type || 'story',
-        assignee: ticketData.assignee || INITIAL_TICKETS[0].assignee,
-        reporter: ticketData.reporter || INITIAL_TICKETS[0].reporter,
-        storyPoints: ticketData.storyPoints || 3,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return newTicket;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Failed to create issue.'));
     }
   }
 );
@@ -116,18 +78,18 @@ export const updateTicketThunk = createAsyncThunk(
   'tickets/updateTicket',
   async (ticketData: JiraTicket, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketData.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(ticketData),
+      const response = await api.put(`/api/tickets/${ticketData.id}`, {
+        ...ticketData,
+        assignee: ticketData.assignee?.id,
+        reporter: ticketData.reporter?.id,
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      const json = response.data;
+      if (!json.success) {
         return rejectWithValue(json.message || 'Failed to update ticket');
       }
       return json.data;
-    } catch {
-      return ticketData;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Failed to update issue.'));
     }
   }
 );
@@ -136,18 +98,14 @@ export const updateTicketStatusThunk = createAsyncThunk(
   'tickets/updateTicketStatus',
   async ({ ticketId, newStatus }: { ticketId: string; newStatus: TicketStatus }, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}/status`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      const response = await api.patch(`/api/tickets/${ticketId}/status`, { status: newStatus });
+      const json = response.data;
+      if (!json.success) {
         return rejectWithValue(json.message || 'Failed to update ticket status');
       }
       return { ticketId, newStatus, ticket: json.data };
-    } catch {
-      return { ticketId, newStatus };
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Failed to update issue status.'));
     }
   }
 );
@@ -156,17 +114,29 @@ export const deleteTicketThunk = createAsyncThunk(
   'tickets/deleteTicket',
   async (ticketId: string, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      const response = await api.delete(`/api/tickets/${ticketId}`);
+      const json = response.data;
+      if (!json.success) {
         return rejectWithValue(json.message || 'Failed to delete ticket');
       }
       return ticketId;
-    } catch {
-      return ticketId;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Failed to delete issue.'));
+    }
+  }
+);
+
+export const addTicketComment = createAsyncThunk(
+  'tickets/addComment',
+  async ({ ticketId, text }: { ticketId: string; text: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/api/tickets/${ticketId}/comments`, { text });
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to add comment.');
+      }
+      return response.data.data as JiraTicket;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Failed to add comment.'));
     }
   }
 );
@@ -188,61 +158,24 @@ export const ticketsSlice = createSlice({
           ? { ...t, status: newStatus, updatedAt: new Date().toISOString() }
           : t
       );
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
-      }
-    },
-    saveTicketLocal: (state, action: PayloadAction<Partial<JiraTicket>>) => {
-      const ticketData = action.payload;
-      if (ticketData.id) {
-        state.tickets = state.tickets.map((t) =>
-          t.id === ticketData.id
-            ? ({ ...t, ...ticketData, updatedAt: new Date().toISOString() } as JiraTicket)
-            : t
-        );
-      } else {
-        const newTicket: JiraTicket = {
-          id: `t-${Date.now()}`,
-          key: ticketData.key || `PROJ-${Math.floor(100 + Math.random() * 900)}`,
-          title: ticketData.title || 'Untitled Ticket',
-          description: ticketData.description || '',
-          status: ticketData.status || 'todo',
-          priority: ticketData.priority || 'medium',
-          type: ticketData.type || 'story',
-          assignee: ticketData.assignee || state.tickets[0]?.assignee || INITIAL_TICKETS[0].assignee,
-          reporter: ticketData.reporter || state.tickets[0]?.reporter || INITIAL_TICKETS[0].reporter,
-          storyPoints: ticketData.storyPoints || 3,
-          fontFamily: ticketData.fontFamily || 'Inter, sans-serif',
-          alignment: ticketData.alignment || 'left',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        state.tickets.unshift(newTicket);
-      }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
-      }
-    },
-    deleteTicketLocal: (state, action: PayloadAction<string>) => {
-      state.tickets = state.tickets.filter((t) => t.id !== action.payload);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
-      }
     },
   },
   extraReducers: (builder) => {
+    builder.addCase(logout, (state) => {
+      state.tickets = [];
+      state.selectedTicket = null;
+      state.status = 'idle';
+      state.error = null;
+      state.pagination = { page: 1, limit: 50, total: 0, totalPages: 1 };
+    });
+
     // Fetch
     builder.addCase(fetchTickets.pending, (state) => {
       state.status = 'loading';
     });
     builder.addCase(fetchTickets.fulfilled, (state, action) => {
       state.status = 'succeeded';
-      if (Array.isArray(action.payload.data) && action.payload.data.length > 0) {
-        state.tickets = action.payload.data;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('jira_tickets_data', JSON.stringify(action.payload.data));
-        }
-      }
+      state.tickets = Array.isArray(action.payload.data) ? action.payload.data : [];
       if (action.payload.pagination) {
         state.pagination = action.payload.pagination;
       }
@@ -258,9 +191,6 @@ export const ticketsSlice = createSlice({
       if (!exists) {
         state.tickets.unshift(action.payload);
       }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
-      }
     });
 
     // Update
@@ -270,9 +200,6 @@ export const ticketsSlice = createSlice({
       );
       if (state.selectedTicket?.id === action.payload.id) {
         state.selectedTicket = action.payload;
-      }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
       }
     });
 
@@ -285,26 +212,24 @@ export const ticketsSlice = createSlice({
         }
         return t;
       });
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
-      }
     });
 
     // Delete
     builder.addCase(deleteTicketThunk.fulfilled, (state, action) => {
       state.tickets = state.tickets.filter((t) => t.id !== action.payload);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jira_tickets_data', JSON.stringify(state.tickets));
+    });
+
+    builder.addCase(addTicketComment.fulfilled, (state, action) => {
+      state.tickets = state.tickets.map((ticket) =>
+        ticket.id === action.payload.id ? action.payload : ticket
+      );
+      if (state.selectedTicket?.id === action.payload.id) {
+        state.selectedTicket = action.payload;
       }
     });
   },
 });
 
-export const {
-  setSelectedTicket,
-  moveTicketOptimistic,
-  saveTicketLocal,
-  deleteTicketLocal,
-} = ticketsSlice.actions;
+export const { setSelectedTicket, moveTicketOptimistic } = ticketsSlice.actions;
 
 export default ticketsSlice.reducer;

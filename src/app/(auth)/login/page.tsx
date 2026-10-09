@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -10,15 +10,43 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { Layers, ArrowRight, ShieldCheck, UserCheck, AlertCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, Mail } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-export default function LoginPage() {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+// Accept the pending invite after logging in
+async function acceptPendingInvite(token: string, accessToken: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/invites/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      credentials: 'include',
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    return { success: res.ok && data.success, message: data.message };
+  } catch (err: any) {
+    return { success: false, message: err.message };
+  }
+}
+
+function LoginContent() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { status, error, isAuthenticated } = useAppSelector((state) => state.auth);
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('inviteToken');
+  const emailParam = searchParams.get('email');
 
-  const [email, setEmail] = useState('alex.morgan@acme-taskflow.io');
-  const [password, setPassword] = useState('jira1234');
+  const [email, setEmail] = useState(emailParam || '');
+  const [password, setPassword] = useState('');
+
+  React.useEffect(() => {
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [emailParam]);
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -26,22 +54,24 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const resultAction = await dispatch(loginUser({ email, password }));
-    if (loginUser.fulfilled.match(resultAction)) {
-      router.push('/board');
+  const afterLogin = async (accessToken: string) => {
+    if (inviteToken) {
+      const result = await acceptPendingInvite(inviteToken, accessToken);
+      if (result.success) {
+        toast.success('Invitation accepted! Welcome to the workspace.');
+      } else if (result.message && !result.message.toLowerCase().includes('already a member')) {
+        toast.error(result.message);
+      }
     }
+    router.push('/board');
   };
 
-  const handleQuickLogin = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('jira1234');
-    dispatch(loginUser({ email: demoEmail, password: 'jira1234' })).then((res) => {
-      if (loginUser.fulfilled.match(res)) {
-        router.push('/board');
-      }
-    });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await dispatch(loginUser({ email, password }));
+    if (loginUser.fulfilled.match(result)) {
+      await afterLogin(result.payload.accessToken);
+    }
   };
 
   return (
@@ -60,9 +90,17 @@ export default function LoginPage() {
             TaskFlow
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Sign in to your team workspace
+            {inviteToken ? 'Sign in to accept your workspace invitation' : 'Sign in to your team workspace'}
           </p>
         </div>
+
+        {/* Invite banner */}
+        {inviteToken && (
+          <div className="flex items-center gap-2.5 p-3 bg-violet-500/10 border border-violet-500/30 rounded-xl text-xs text-violet-700 dark:text-violet-300 font-medium">
+            <Mail className="w-4 h-4 shrink-0" />
+            You have a pending workspace invitation. Log in to accept it.
+          </div>
+        )}
 
         <Card className="border border-border/80 shadow-xl rounded-2xl">
           <CardHeader className="space-y-1 pb-4">
@@ -86,14 +124,13 @@ export default function LoginPage() {
                   if (credentialResponse.credential) {
                     const res = await dispatch(googleLogin(credentialResponse.credential));
                     if (googleLogin.fulfilled.match(res)) {
-                      router.push('/board');
+                      await afterLogin(res.payload.accessToken);
                     }
                   }
                 }}
                 onError={() => {
                   console.error('Google Sign-In failed');
                 }}
-                useOneTap
               />
             </div>
 
@@ -154,45 +191,31 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Quick Demo Logins */}
-            <div className="pt-3 border-t border-border/60">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-                1-Click Demo Accounts:
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('alex.morgan@acme-taskflow.io')}
-                  className="p-2 text-left rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-xs"
-                >
-                  <div className="font-semibold text-foreground flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Alex (Admin)
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate">alex.morgan@...</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('sarah.connor@acme-taskflow.io')}
-                  className="p-2 text-left rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-xs"
-                >
-                  <div className="font-semibold text-foreground flex items-center gap-1">
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Sarah (Lead)
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate">sarah.connor@...</div>
-                </button>
-              </div>
-            </div>
           </CardContent>
 
           <CardFooter className="pt-0 flex justify-center text-xs text-muted-foreground border-t border-border/50 py-3">
-            Don't have an account?{' '}
-            <Link href="/register" className="ml-1 text-primary font-bold hover:underline">
-              Create account
+            Don&apos;t have an account?{' '}
+            <Link
+              href={inviteToken ? `/invite/accept?token=${inviteToken}` : '/register'}
+              className="ml-1 text-primary font-bold hover:underline"
+            >
+              {inviteToken ? 'Accept Invitation' : 'Create account'}
             </Link>
           </CardFooter>
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

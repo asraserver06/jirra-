@@ -1,9 +1,11 @@
 import { createApp } from './app.js';
 import { connectDB } from './config/db.js';
 import { ENV } from './config/env.js';
+import { verifySmtp } from './services/email.services.js';
 
 const startServer = async () => {
   await connectDB();
+  await verifySmtp();
 
   const app = createApp();
 
@@ -12,7 +14,6 @@ const startServer = async () => {
     console.log(`🚀 TaskFlow Express REST API Server running on port ${ENV.PORT}`);
     console.log(`🔗 API Base: http://localhost:${ENV.PORT}/api`);
     console.log(`🩺 Health: http://localhost:${ENV.PORT}/api/health`);
-    console.log(`🌱 Seed: npm run seed (to populate realistic dataset)`);
     console.log(`===============================================`);
   });
 

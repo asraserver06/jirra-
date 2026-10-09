@@ -3,11 +3,13 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import authReducer from './slices/authSlice';
 import ticketsReducer from './slices/ticketsSlice';
 import uiReducer from './slices/uiSlice';
+import workspaceReducer from './slices/workspaceSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   tickets: ticketsReducer,
   ui: uiReducer,
+  workspace: workspaceReducer,
 });
 
 export const makeStore = () => {

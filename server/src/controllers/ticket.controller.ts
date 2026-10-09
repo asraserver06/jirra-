@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { Ticket } from '../models/Ticket.js';
-import { User } from '../models/User.js';
 import { AppError } from '../utils/appError.js';
 import { sendSuccess } from '../utils/response.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
@@ -127,9 +126,8 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
     }
   }
 
-  const defaultUser = await User.findOne();
-  const assignedUserId = assignee || (defaultUser ? defaultUser._id : null);
-  const reporterUserId = reporter || req.user?.id || (defaultUser ? defaultUser._id : null);
+  const assignedUserId = assignee || req.user!.id;
+  const reporterUserId = reporter || req.user!.id;
 
   const newTicket = await Ticket.create({
     key: `PROJ-${nextNum}`,
@@ -226,11 +224,8 @@ export const addComment = async (req: AuthRequest, res: Response) => {
     throw new AppError(`Ticket '${id}' not found`, 404);
   }
 
-  const defaultUser = await User.findOne();
-  const commentUser = req.user?.id || (defaultUser ? defaultUser._id : null);
-
   ticket.comments.push({
-    user: commentUser,
+    user: req.user!.id,
     text,
     createdAt: new Date(),
   });

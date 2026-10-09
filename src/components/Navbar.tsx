@@ -27,6 +27,7 @@ export const Navbar: React.FC = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { searchQuery } = useAppSelector((state) => state.ui);
+  const { myRole } = useAppSelector((state) => state.workspace);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const handleSignOut = () => {
@@ -66,6 +67,12 @@ export const Navbar: React.FC = () => {
             className="px-3 py-1.5 hover:bg-muted text-foreground/80 hover:text-foreground rounded-lg transition-colors"
           >
             Metrics
+          </Link>
+          <Link
+            href="/members"
+            className="px-3 py-1.5 hover:bg-muted text-foreground/80 hover:text-foreground rounded-lg transition-colors"
+          >
+            Members
           </Link>
         </nav>
 
@@ -131,11 +138,11 @@ export const Navbar: React.FC = () => {
                 onClick={() => setShowUserDropdown(false)}
               >
                 <div className="px-3 py-2 border-b border-border/60">
-                  <div className="font-semibold text-xs truncate">{user?.name || 'Guest User'}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{user?.email || 'guest@taskflow.local'}</div>
+                  {user?.name && <div className="font-semibold text-xs truncate">{user.name}</div>}
+                  {user?.email && <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>}
                   <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary text-secondary-foreground border border-border">
                     <ShieldCheck className="w-3 h-3 text-primary" />
-                    {user?.role || 'Member'}
+                    {myRole ? myRole.charAt(0).toUpperCase() + myRole.slice(1) : (user?.role || 'Workspace member')}
                   </div>
                 </div>
 
@@ -156,7 +163,7 @@ export const Navbar: React.FC = () => {
                     href="/dashboard"
                     className="flex items-center gap-2.5 px-3 py-1.5 text-xs text-foreground/80 hover:text-foreground hover:bg-muted transition-colors"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-muted-foreground" /> Sprint Metrics
+                    <Sparkles className="w-3.5 h-3.5 text-muted-foreground" /> Workspace Metrics
                   </Link>
                 </div>
 

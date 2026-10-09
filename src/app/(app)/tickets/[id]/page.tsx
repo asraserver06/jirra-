@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { updateTicketThunk, deleteTicketThunk } from '@/store/slices/ticketsSlice';
+import { addTicketComment, updateTicketThunk, deleteTicketThunk } from '@/store/slices/ticketsSlice';
+import { fetchMembers } from '@/store/slices/workspaceSlice';
 import { RichTextEditor } from '@/components/RichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_USERS } from '@/data/mockData';
+
 import { JiraTicket, TicketPriority, TicketStatus, TicketType } from '@/types/jira';
 import {
   ChevronRight,
@@ -26,13 +27,14 @@ import {
   CheckSquare,
   Zap,
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function TicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { tickets } = useAppSelector((state) => state.tickets);
-  const { user: currentUser } = useAppSelector((state) => state.auth);
+  const { tickets, status: ticketsStatus } = useAppSelector((state) => state.tickets);
+  const { current: workspace, members } = useAppSelector((state) => state.workspace);
 
   const ticket = tickets.find((t) => t.id === id || t.key === id);
 
@@ -42,21 +44,14 @@ export default function TicketDetailPage() {
   const [priority, setPriority] = useState<TicketPriority>(ticket?.priority || 'medium');
   const [type, setType] = useState<TicketType>(ticket?.type || 'story');
   const [storyPoints, setStoryPoints] = useState<number>(ticket?.storyPoints || 3);
-  const [assigneeId, setAssigneeId] = useState<string>(ticket?.assignee?.id || (ticket?.assignee as any)?._id || 'usr-1');
-
-  // Comments local state
-  const [comments, setComments] = useState<any[]>(() => {
-    return (ticket as any)?.comments || [
-      {
-        id: 'c-1',
-        user: { name: 'Sarah Connor', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-        text: 'Initial review complete. Please update the PR with error handling test cases.',
-        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-      },
-    ];
-  });
+  const [assigneeId, setAssigneeId] = useState<string>(ticket?.assignee?.id || '');
   const [newCommentText, setNewCommentText] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const comments = ticket?.comments || [];
+
+  useEffect(() => {
+    if (workspace?._id) dispatch(fetchMembers(workspace._id));
+  }, [dispatch, workspace?._id]);
 
   useEffect(() => {
     if (ticket) {
@@ -66,9 +61,13 @@ export default function TicketDetailPage() {
       setPriority(ticket.priority);
       setType(ticket.type);
       setStoryPoints(ticket.storyPoints);
-      setAssigneeId(ticket.assignee?.id || (ticket.assignee as any)?._id || 'usr-1');
+      setAssigneeId(ticket.assignee?.id || (ticket.assignee as any)?._id || '');
     }
   }, [ticket]);
+
+  if (!ticket && (ticketsStatus === 'idle' || ticketsStatus === 'loading')) {
+    return <p className="p-8 text-center text-sm text-muted-foreground">Loading issue…</p>;
+  }
 
   if (!ticket) {
     return (
@@ -85,7 +84,7 @@ export default function TicketDetailPage() {
   }
 
   const handleSaveChanges = async () => {
-    const assignedUser = MOCK_USERS.find((u) => u.id === assigneeId) || ticket.assignee;
+    const assignedUser = members.find((member) => member.user.id === assigneeId || member.user._id === assigneeId)?.user || ticket.assignee;
     const updated: JiraTicket = {
       ...ticket,
       title,
@@ -98,34 +97,33 @@ export default function TicketDetailPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    await dispatch(updateTicketThunk(updated));
+    const result = await dispatch(updateTicketThunk(updated));
+    if (updateTicketThunk.rejected.match(result)) {
+      toast.error((result.payload as string) || 'Could not save issue changes.');
+      return;
+    }
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2500);
   };
 
   const handleDelete = async () => {
     if (confirm(`Are you sure you want to delete ${ticket.key}?`)) {
-      await dispatch(deleteTicketThunk(ticket.id));
-      router.push('/board');
+      const result = await dispatch(deleteTicketThunk(ticket.id));
+      if (deleteTicketThunk.fulfilled.match(result)) router.push('/board');
+      else toast.error((result.payload as string) || 'Could not delete issue.');
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentText.trim()) return;
 
-    const newComment = {
-      id: `c-${Date.now()}`,
-      user: {
-        name: currentUser?.name || 'Current User',
-        avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      },
-      text: newCommentText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    setComments([newComment, ...comments]);
-    setNewCommentText('');
+    const result = await dispatch(addTicketComment({ ticketId: ticket.id, text: newCommentText.trim() }));
+    if (addTicketComment.fulfilled.match(result)) {
+      setNewCommentText('');
+    } else {
+      toast.error((result.payload as string) || 'Could not post comment.');
+    }
   };
 
   const getTypeIcon = (t: TicketType) => {
@@ -148,7 +146,7 @@ export default function TicketDetailPage() {
           <ChevronRight className="w-3.5 h-3.5" />
           <span>Projects</span>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span>Acme Software</span>
+          <span>{workspace?.name || 'Workspace'}</span>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="font-bold text-foreground font-mono">{ticket.key}</span>
         </div>
@@ -234,7 +232,14 @@ export default function TicketDetailPage() {
                   <div className="flex items-center justify-between text-muted-foreground">
                     <div className="flex items-center gap-2 font-semibold text-foreground">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={c.user?.avatar} alt={c.user?.name} className="w-4 h-4 rounded-full object-cover" />
+                      {c.user?.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.user.avatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+                      ) : (
+                        <span aria-hidden="true" className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
+                          {c.user?.name?.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
                       <span>{c.user?.name}</span>
                     </div>
                     <span className="text-[10px]">{new Date(c.createdAt).toLocaleDateString()}</span>
@@ -279,9 +284,9 @@ export default function TicketDetailPage() {
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className="w-full h-8 rounded border border-input bg-transparent px-2 text-xs"
               >
-                {MOCK_USERS.map((u) => (
-                  <option key={u.id} value={u.id} className="dark:bg-slate-900">
-                    {u.name} ({u.role})
+                {members.map((membership) => (
+                  <option key={membership.user.id} value={membership.user.id} className="dark:bg-slate-900">
+                    {membership.user.name} ({membership.role})
                   </option>
                 ))}
               </select>
@@ -291,11 +296,11 @@ export default function TicketDetailPage() {
             <div>
               <span className="text-muted-foreground font-semibold block mb-1">Reporter</span>
               <div className="flex items-center gap-2 p-1.5 rounded bg-muted/50 border border-border">
-                {ticket.reporter && (
+                {ticket.reporter?.avatar && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={ticket.reporter.avatar} alt={ticket.reporter.name} className="w-5 h-5 rounded-full object-cover" />
                 )}
-                <span className="font-medium text-foreground truncate">{ticket.reporter?.name || 'Alex Morgan'}</span>
+                <span className="font-medium text-foreground truncate">{ticket.reporter?.name || 'No reporter assigned'}</span>
               </div>
             </div>
 

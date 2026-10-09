@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchTickets, saveTicketLocal, createTicketThunk, updateTicketThunk } from '@/store/slices/ticketsSlice';
+import { fetchTickets, createTicketThunk, updateTicketThunk } from '@/store/slices/ticketsSlice';
+import { fetchMyWorkspace } from '@/store/slices/workspaceSlice';
 import { setCreateModalOpen } from '@/store/slices/uiSlice';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
@@ -24,8 +25,8 @@ export default function AppLayout({
 
   useEffect(() => {
     setMounted(true);
-    // Initial fetch from Express API (with graceful fallback to mock data)
     dispatch(fetchTickets({}));
+    dispatch(fetchMyWorkspace());
   }, [dispatch]);
 
   // Auth protection check
@@ -37,9 +38,11 @@ export default function AppLayout({
 
   const handleSaveTicket = async (ticketData: Partial<JiraTicket>) => {
     if (ticketData.id) {
-      await dispatch(updateTicketThunk(ticketData as JiraTicket));
+      const result = await dispatch(updateTicketThunk(ticketData as JiraTicket));
+      if (updateTicketThunk.rejected.match(result)) return;
     } else {
-      await dispatch(createTicketThunk(ticketData));
+      const result = await dispatch(createTicketThunk(ticketData));
+      if (createTicketThunk.rejected.match(result)) return;
     }
     dispatch(setCreateModalOpen(false));
     setTicketToEdit(null);

@@ -131,12 +131,5 @@ describe('Analytics API Integration Tests', () => {
       expect(w2.count).toBe(1);
       expect(w2.storyPoints).toBe(8);
     });
-
-    it('should include a sprint name in the response', async () => {
-      const res = await request(app).get('/api/analytics/sprint');
-
-      expect(res.body.data.sprintName).toBeDefined();
-      expect(typeof res.body.data.sprintName).toBe('string');
-    });
   });
 });

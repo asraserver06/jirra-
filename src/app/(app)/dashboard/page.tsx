@@ -1,26 +1,33 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { useAppSelector } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/store';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { fetchMembers } from '@/store/slices/workspaceSlice';
+import { setCreateModalOpen } from '@/store/slices/uiSlice';
 import {
   BarChart2,
   TrendingUp,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   Users,
   Flame,
   ChevronRight,
   ExternalLink,
+  Plus,
 } from 'lucide-react';
-import { MOCK_USERS } from '@/data/mockData';
+
 
 export default function DashboardPage() {
-  const { tickets } = useAppSelector((state) => state.tickets);
+  const dispatch = useAppDispatch();
+  const { tickets, status, error } = useAppSelector((state) => state.tickets);
+  const { current: workspace, members, membersStatus } = useAppSelector((state) => state.workspace);
+
+  useEffect(() => {
+    if (workspace?._id) dispatch(fetchMembers(workspace._id));
+  }, [dispatch, workspace?._id]);
 
   const total = tickets.length;
   const done = tickets.filter((t) => t.status === 'done').length;
@@ -39,15 +46,44 @@ export default function DashboardPage() {
   const percentComplete = total > 0 ? Math.round((done / total) * 100) : 0;
   const pointsPercent = totalPoints > 0 ? Math.round((donePoints / totalPoints) * 100) : 0;
 
+  if (status === 'idle' || status === 'loading') {
+    return <p className="p-8 text-center text-sm text-muted-foreground">Loading workspace issues…</p>;
+  }
+
+  if (status === 'failed') {
+    return <p role="alert" className="p-8 text-center text-sm text-destructive">{error || 'Unable to load workspace issues.'}</p>;
+  }
+
+  if (tickets.length === 0) {
+    return (
+      <div className="flex flex-col max-w-4xl mx-auto w-full pb-16 space-y-6">
+        <div>
+          <h1 className="text-2xl font-black text-foreground">{workspace?.name || 'Workspace'} dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Your workspace is ready. Create an issue to start tracking work.</p>
+        </div>
+        <Card className="py-12 text-center">
+          <CardContent className="flex flex-col items-center gap-3">
+            <BarChart2 className="w-8 h-8 text-muted-foreground" />
+            <h2 className="text-lg font-bold">No issues yet</h2>
+            <p className="text-sm text-muted-foreground">Issues and dashboard metrics will appear here when your team creates work.</p>
+            <Button onClick={() => dispatch(setCreateModalOpen(true))} className="mt-2">
+              <Plus className="w-4 h-4 mr-1" /> Create first issue
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col max-w-7xl mx-auto w-full pb-16 space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
         <span>Projects</span>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-[#0052CC] dark:text-blue-400 font-semibold">Acme Software</span>
+        <span className="text-[#0052CC] dark:text-blue-400 font-semibold">{workspace?.name || 'Workspace'}</span>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-foreground font-bold">Sprint Dashboard</span>
+        <span className="text-foreground font-bold">Dashboard</span>
       </div>
 
       {/* Header */}
@@ -55,10 +91,10 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-xl font-black text-foreground tracking-tight flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-emerald-500" />
-            Sprint 14 Analytics & Velocity
+            Workspace analytics
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time delivery metrics, burndown health, and team capacity distribution
+            Issue completion, progress, and team workload
           </p>
         </div>
 
@@ -106,7 +142,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase tracking-wider">
-              Story Points Velocity
+              Story Points Delivered
             </CardDescription>
             <CardTitle className="text-2xl font-black text-[#0052CC] dark:text-blue-400 flex items-center justify-between">
               {donePoints} / {totalPoints}
@@ -115,7 +151,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {pointsPercent}% sprint capacity delivered
+              {pointsPercent}% of story points delivered
             </div>
             <div className="w-full h-1.5 bg-muted rounded-full mt-2 overflow-hidden">
               <div
@@ -247,32 +283,42 @@ export default function DashboardPage() {
               <Users className="w-4 h-4 text-blue-500" /> Team Workload & Story Points
             </CardTitle>
             <CardDescription className="text-xs">
-              Capacity allocation across active team members
+              Work assigned across workspace members
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {MOCK_USERS.map((member) => {
+            {membersStatus === 'loading' ? (
+              <p className="text-xs text-muted-foreground">Loading workspace members…</p>
+            ) : membersStatus === 'failed' ? (
+              <p role="alert" className="text-xs text-destructive">Unable to load workspace members.</p>
+            ) : members.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No workspace members found.</p>
+            ) : members.map((membership) => {
+              const member = membership.user;
+              const memberId = member.id || member._id;
               const memberTickets = tickets.filter(
-                (t) => t.assignee?.id === member.id || (t.assignee as any)?._id === member.id
+                (t) => t.assignee?.id === memberId || t.assignee?._id === memberId
               );
               const memberPoints = memberTickets.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
               const memberDone = memberTickets.filter((t) => t.status === 'done').length;
 
               return (
                 <div
-                  key={member.id}
+                  key={membership._id}
                   className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30"
                 >
                   <div className="flex items-center gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-8 h-8 rounded-full object-cover border border-border"
-                    />
+                    {member.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={member.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-border" />
+                    ) : (
+                      <div aria-hidden="true" className="w-8 h-8 rounded-full border border-border bg-muted flex items-center justify-center font-semibold">
+                        {member.name.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <div className="font-semibold text-xs text-foreground">{member.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{member.role}</div>
+                      <div className="text-[10px] text-muted-foreground">{membership.role}</div>
                     </div>
                   </div>
 

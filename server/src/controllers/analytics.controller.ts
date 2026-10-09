@@ -48,7 +48,6 @@ export const getSprintMetrics = async (req: Request, res: Response) => {
   return sendSuccess(
     res,
     {
-      sprintName: 'Sprint 14 - Platform Architecture & Polish',
       totalTickets: total,
       statusCounts,
       priorityCounts,

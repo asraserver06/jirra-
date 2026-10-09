@@ -6,7 +6,7 @@ import {
   moveTicketOptimistic,
   updateTicketStatusThunk,
   deleteTicketThunk,
-  saveTicketLocal,
+  updateTicketThunk,
 } from '@/store/slices/ticketsSlice';
 import {
   setPriorityFilter,
@@ -22,10 +22,12 @@ import { TicketModal } from '@/components/TicketModal';
 import { JiraTicket, TicketStatus } from '@/types/jira';
 import { ChevronRight, Plus, Kanban as KanbanIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'react-hot-toast';
 
 export default function BoardPage() {
   const dispatch = useAppDispatch();
-  const { tickets } = useAppSelector((state) => state.tickets);
+  const { tickets, status, error } = useAppSelector((state) => state.tickets);
+  const { current: workspace } = useAppSelector((state) => state.workspace);
   const {
     selectedPriorityFilter,
     selectedAssigneeId,
@@ -35,11 +37,14 @@ export default function BoardPage() {
   const [ticketToEdit, setTicketToEdit] = useState<JiraTicket | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const handleMoveTicket = (ticketId: string, newStatus: TicketStatus) => {
-    // 1. Optimistic instant UI update
+  const handleMoveTicket = async (ticketId: string, newStatus: TicketStatus) => {
+    const previousStatus = tickets.find((ticket) => ticket.id === ticketId)?.status;
     dispatch(moveTicketOptimistic({ ticketId, newStatus }));
-    // 2. Dispatch network update to Express backend
-    dispatch(updateTicketStatusThunk({ ticketId, newStatus }));
+    const result = await dispatch(updateTicketStatusThunk({ ticketId, newStatus }));
+    if (updateTicketStatusThunk.rejected.match(result) && previousStatus) {
+      dispatch(moveTicketOptimistic({ ticketId, newStatus: previousStatus }));
+      toast.error((result.payload as string) || 'Could not update issue status.');
+    }
   };
 
   const handleDeleteTicket = (ticketId: string) => {
@@ -58,8 +63,13 @@ export default function BoardPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEditTicket = (ticketData: Partial<JiraTicket>) => {
-    dispatch(saveTicketLocal(ticketData));
+  const handleSaveEditTicket = async (ticketData: Partial<JiraTicket>) => {
+    if (!ticketData.id) return;
+    const result = await dispatch(updateTicketThunk(ticketData as JiraTicket));
+    if (updateTicketThunk.rejected.match(result)) {
+      toast.error((result.payload as string) || 'Could not save issue changes.');
+      return;
+    }
     setIsEditModalOpen(false);
     setTicketToEdit(null);
   };
@@ -90,7 +100,7 @@ export default function BoardPage() {
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
         <span>Workspaces</span>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-foreground font-semibold">Acme Workspace</span>
+        <span className="text-foreground font-semibold">{workspace?.name || 'Workspace'}</span>
         <ChevronRight className="w-3.5 h-3.5" />
         <span className="text-primary font-bold">PROJ Board</span>
       </div>
@@ -103,7 +113,7 @@ export default function BoardPage() {
             Project Board
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Sprint 14 — Active Task & Issue Tracking
+            Track and manage your workspace issues
           </p>
         </div>
 
@@ -118,8 +128,13 @@ export default function BoardPage() {
         </div>
       </div>
 
-      {/* Sprint Progress Widget */}
-      <ProgressBar tickets={tickets} />
+      {status === 'failed' ? (
+        <p role="alert" className="mb-4 text-sm text-destructive">{error || 'Unable to load workspace issues.'}</p>
+      ) : status === 'loading' ? (
+        <p className="mb-4 text-sm text-muted-foreground">Loading workspace issues…</p>
+      ) : tickets.length > 0 ? (
+        <ProgressBar tickets={tickets} />
+      ) : null}
 
       {/* Board Filters */}
       <PriorityFilter

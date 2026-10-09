@@ -158,12 +158,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">
               {ticket.assignee.name.split(' ')[0]}
             </span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={ticket.assignee.avatar}
-              alt={ticket.assignee.name}
-              className="w-5 h-5 rounded-full object-cover border border-background shadow-2xs"
-            />
+            {ticket.assignee.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ticket.assignee.avatar} alt="" className="w-5 h-5 rounded-full object-cover border border-background shadow-2xs" />
+            ) : (
+              <span aria-hidden="true" className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[9px]">
+                {ticket.assignee.name.slice(0, 1).toUpperCase()}
+              </span>
+            )}
           </div>
         )}
       </div>

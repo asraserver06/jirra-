@@ -6,10 +6,18 @@ export type TicketType = 'bug' | 'story' | 'task' | 'epic';
 
 export interface User {
   id: string;
+  _id?: string;
   name: string;
   email: string;
   avatar: string;
-  role: string;
+  role?: string;
+}
+
+export interface TicketComment {
+  id: string;
+  user: User;
+  text: string;
+  createdAt: string;
 }
 
 export interface JiraTicket {
@@ -25,6 +33,7 @@ export interface JiraTicket {
   storyPoints: number;
   fontFamily?: string;
   alignment?: 'left' | 'center' | 'right' | 'justify';
+  comments?: TicketComment[];
   createdAt: string;
   updatedAt: string;
 }

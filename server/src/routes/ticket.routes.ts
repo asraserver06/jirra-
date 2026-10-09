@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authenticate } from '../middlewares/auth.middleware.js';
 import {
   getTickets,
   getTicketById,
@@ -19,6 +20,8 @@ import {
 import { asyncHandler } from '../middlewares/error.middleware.js';
 
 const router = Router();
+
+router.use(authenticate);
 
 router.get('/', validate(queryTicketSchema), asyncHandler(getTickets));
 router.get('/:id', asyncHandler(getTicketById));

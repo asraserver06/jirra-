@@ -40,7 +40,8 @@ import { JiraTicket, TicketPriority, TicketStatus, TicketType } from '@/types/ji
 
 export default function IssueListPage() {
   const dispatch = useAppDispatch();
-  const { tickets } = useAppSelector((state) => state.tickets);
+  const { tickets, status, error } = useAppSelector((state) => state.tickets);
+  const { current: workspace } = useAppSelector((state) => state.workspace);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -134,10 +135,17 @@ export default function IssueListPage() {
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
         <span>Projects</span>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-[#0052CC] dark:text-blue-400 font-semibold">Acme Software</span>
+        <span className="text-[#0052CC] dark:text-blue-400 font-semibold">{workspace?.name || 'Workspace'}</span>
         <ChevronRight className="w-3.5 h-3.5" />
         <span className="text-foreground font-bold">All Issues</span>
       </div>
+
+      {status === 'failed' && (
+        <p role="alert" className="mb-4 text-sm text-destructive">{error || 'Unable to load workspace issues.'}</p>
+      )}
+      {status === 'loading' && (
+        <p className="mb-4 text-sm text-muted-foreground">Loading workspace issues…</p>
+      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -147,7 +155,7 @@ export default function IssueListPage() {
             Issues List
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Full backlog and sprint issues with column sorting and filtering
+            Workspace issues with sorting and filtering
           </p>
         </div>
 
@@ -293,12 +301,14 @@ export default function IssueListPage() {
                 <TableCell>
                   {ticket.assignee && (
                     <div className="flex items-center gap-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={ticket.assignee.avatar}
-                        alt={ticket.assignee.name}
-                        className="w-5 h-5 rounded-full object-cover"
-                      />
+                      {ticket.assignee.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={ticket.assignee.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                      ) : (
+                        <span aria-hidden="true" className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                          {ticket.assignee.name.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
                       <span className="text-xs text-foreground truncate max-w-[120px]">
                         {ticket.assignee.name}
                       </span>

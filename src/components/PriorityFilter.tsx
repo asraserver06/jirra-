@@ -3,7 +3,7 @@
 import React from 'react';
 import { Search, Flame } from 'lucide-react';
 import { TicketPriority, JiraTicket } from '../types/jira';
-import { MOCK_USERS } from '../data/mockData';
+
 
 interface PriorityFilterProps {
   tickets: JiraTicket[];
@@ -28,6 +28,15 @@ export const PriorityFilter: React.FC<PriorityFilterProps> = ({
     (t) => (t.priority === 'high' || t.priority === 'urgent') && t.status !== 'done'
   ).length;
 
+  // Derive unique assignees from actual ticket data
+  const uniqueAssignees = Array.from(
+    new Map(
+      tickets
+        .filter((t) => t.assignee?.id)
+        .map((t) => [t.assignee.id, t.assignee])
+    ).values()
+  );
+
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 py-2 border-b border-border/60">
       {/* Left: Search + Member Avatars */}
@@ -46,7 +55,7 @@ export const PriorityFilter: React.FC<PriorityFilterProps> = ({
         {/* Assignee Avatar Filter Row */}
         <div className="flex items-center gap-1.5 border-l border-border/60 pl-3">
           <span className="text-[11px] font-medium text-muted-foreground mr-1 hidden sm:inline">Assignees:</span>
-          {MOCK_USERS.map((user) => {
+          {uniqueAssignees.map((user) => {
             const isSelected = selectedAssigneeId === user.id;
             return (
               <button
@@ -57,8 +66,14 @@ export const PriorityFilter: React.FC<PriorityFilterProps> = ({
                   isSelected ? 'border-primary ring-2 ring-primary/30 scale-105' : 'border-transparent opacity-75 hover:opacity-100'
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                {user.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span aria-hidden="true" className="w-full h-full bg-muted flex items-center justify-center text-[10px] font-semibold">
+                    {user.name.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
               </button>
             );
           })}

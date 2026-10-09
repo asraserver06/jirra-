@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { TrendingUp, CheckCircle2 } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { JiraTicket } from '../types/jira';
 
 interface ProgressBarProps {
@@ -33,12 +33,9 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ tickets }) => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xs font-bold text-foreground">Sprint 14 Progress</h3>
-              <span className="bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full border border-primary/20">
-                Active
-              </span>
+              <h3 className="text-xs font-bold text-foreground">Workspace progress</h3>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Sprint Goal: Deliver full-stack TaskFlow app with Next.js & Express REST API</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Issue status and story point progress</p>
           </div>
         </div>
 

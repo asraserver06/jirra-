@@ -34,7 +34,6 @@
 - **Google OAuth 2.0 Integration**: One-click Google Sign-In & Sign-Up via Google Identity Services (`@react-oauth/google` and `google-auth-library` server-side token validation).
 - **Email & Password Authentication**: Secure registration and login with `bcryptjs` password hashing (salt rounds: 12).
 - **JWT Session Handling**: Stateless authentication using short-lived Access Tokens (15m) and secure, HTTP-only Refresh Tokens (7d).
-- **Demo Quick-Login**: 1-click login buttons for testing different team roles (Admin, Lead).
 - **Role-Based Access Control (RBAC)**: Support for `admin`, `lead`, `developer`, and `viewer` roles.
 
 ### 📋 Interactive Kanban Board & Workflow Engine
@@ -50,7 +49,7 @@
 - **Multi-Factor Search**: Instant client-side filtering by ticket title, key (`PROJ-101`), or description.
 - **Priority Filtering**: Filter by `All`, `High & Urgent`, `Medium`, or `Low`.
 - **Assignee Avatar Filtering**: Filter tickets by assigned team member avatars.
-- **Real-Time Sprint Progress Bar**: Interactive segmented progress widget showing completion percentages and story point tallies (`Completed tasks %` & `Points burned`).
+- **Real-Time Workspace Progress Bar**: Interactive segmented progress widget showing issue completion percentages and story point tallies.
 
 ### 📝 Issue Creation & Rich Text Editing
 - **Ticket Modal Management**: Create, edit, and view issue details with status, priority, story points, and assignee selection.

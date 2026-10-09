@@ -168,7 +168,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
   // ─── Get Tickets (List) ──────────────────────────────────────
   describe('GET /api/tickets', () => {
     it('should retrieve an empty list when no tickets exist', async () => {
-      const res = await request(app).get('/api/tickets');
+      const res = await request(app).get('/api/tickets').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -188,7 +188,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Ticket B', assignee: userId });
 
-      const res = await request(app).get('/api/tickets?limit=10&page=1');
+      const res = await request(app).get('/api/tickets?limit=10&page=1').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -208,8 +208,8 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Paginate B', assignee: userId });
 
-      const page1 = await request(app).get('/api/tickets?limit=1&page=1');
-      const page2 = await request(app).get('/api/tickets?limit=1&page=2');
+      const page1 = await request(app).get('/api/tickets?limit=1&page=1').set('Authorization', `Bearer ${authToken}`);
+      const page2 = await request(app).get('/api/tickets?limit=1&page=2').set('Authorization', `Bearer ${authToken}`);
 
       expect(page1.status).toBe(200);
       expect(page2.status).toBe(200);
@@ -231,7 +231,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Done Ticket', assignee: userId, status: 'done' });
 
-      const res = await request(app).get('/api/tickets?status=done');
+      const res = await request(app).get('/api/tickets?status=done').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBe(1);
@@ -248,7 +248,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Low Prio', assignee: userId, priority: 'low' });
 
-      const res = await request(app).get('/api/tickets?priority=high');
+      const res = await request(app).get('/api/tickets?priority=high').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBe(1);
@@ -265,7 +265,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Another Ticket', assignee: userId });
 
-      const res = await request(app).get('/api/tickets?search=Searchable');
+      const res = await request(app).get('/api/tickets?search=Searchable').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBe(1);
@@ -278,7 +278,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Populated Ticket', assignee: userId });
 
-      const res = await request(app).get('/api/tickets');
+      const res = await request(app).get('/api/tickets').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.body.data[0].assignee).toBeDefined();
       expect(res.body.data[0].assignee.name).toBe('QA Master');
@@ -295,7 +295,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .send({ title: 'Detail Ticket', assignee: userId });
 
       const ticketId = createRes.body.data.id;
-      const res = await request(app).get(`/api/tickets/${ticketId}`);
+      const res = await request(app).get(`/api/tickets/${ticketId}`).set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.title).toBe('Detail Ticket');
@@ -308,14 +308,14 @@ describe('Ticket Lifecycle API Integration Tests', () => {
         .send({ title: 'Key Lookup', assignee: userId });
 
       const key = createRes.body.data.key;
-      const res = await request(app).get(`/api/tickets/${key}`);
+      const res = await request(app).get(`/api/tickets/${key}`).set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.key).toBe(key);
     });
 
     it('should return 404 for non-existent ticket', async () => {
-      const res = await request(app).get('/api/tickets/000000000000000000000000');
+      const res = await request(app).get('/api/tickets/000000000000000000000000').set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
@@ -497,7 +497,7 @@ describe('Ticket Lifecycle API Integration Tests', () => {
       expect(res.body.success).toBe(true);
 
       // Verify it's gone
-      const getRes = await request(app).get(`/api/tickets/${ticketId}`);
+      const getRes = await request(app).get(`/api/tickets/${ticketId}`).set('Authorization', `Bearer ${authToken}`);
       expect(getRes.status).toBe(404);
     });
 

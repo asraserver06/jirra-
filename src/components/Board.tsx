@@ -4,8 +4,16 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { JiraTicket, TicketStatus } from '../types/jira';
-import { COLUMNS } from '../data/mockData';
+
 import { TicketCard } from './TicketCard';
+import { ColumnDefinition } from '../types/jira';
+
+const COLUMN_DEFINITIONS: ColumnDefinition[] = [
+  { id: 'todo',        title: 'To Do',       color: '#6b7280', bgColor: 'bg-gray-500/10',    borderColor: 'border-gray-500/20' },
+  { id: 'in_progress', title: 'In Progress', color: '#3b82f6', bgColor: 'bg-blue-500/10',    borderColor: 'border-blue-500/20' },
+  { id: 'in_review',   title: 'In Review',   color: '#f59e0b', bgColor: 'bg-amber-500/10',   borderColor: 'border-amber-500/20' },
+  { id: 'done',        title: 'Done',        color: '#10b981', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20' },
+];
 
 interface BoardProps {
   tickets: JiraTicket[];
@@ -55,7 +63,7 @@ export const Board: React.FC<BoardProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-12">
-      {COLUMNS.map((column) => {
+      {COLUMN_DEFINITIONS.map((column) => {
         const colTickets = tickets.filter((t) => t.status === column.id);
         const colStoryPoints = colTickets.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
         const isDropTarget = activeDropColumn === column.id;

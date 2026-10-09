@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '@/types/jira';
+import { api, apiErrorMessage } from '@/lib/api';
 
 export interface AuthState {
   user: User | null;
@@ -31,55 +32,57 @@ const initialState: AuthState = {
   error: null,
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const clearStoredAuth = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('jira_token');
+    localStorage.removeItem('jira_user');
+  }
+};
 
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
+      const response = await api.post('/api/auth/login', {
+        email: credentials.email.trim().toLowerCase(),
+        password: credentials.password,
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return rejectWithValue(data.message || 'Login failed');
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Login failed');
       }
-      return data.data; // { user, accessToken, refreshToken }
-    } catch (err: any) {
-      // Fallback: If backend is offline during Day 1-3 stage, support mock demo sign-in
-      if (credentials.email.includes('admin') || credentials.email.includes('alex') || credentials.password === 'jira1234') {
-        const mockUser: User = {
-          id: 'u-1',
-          name: 'Alex Morgan',
-          email: credentials.email,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
-          role: 'admin',
-        };
-        return { user: mockUser, accessToken: 'mock-jwt-token-alex' };
-      }
-      return rejectWithValue(err.message || 'Network error connecting to API');
+      return response.data.data;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Network error connecting to API'));
     }
   }
 );
 
 export const registerUser = createAsyncThunk(
   'auth/register',
-  async (userData: { name: string; email: string; password: string; role?: string }, { rejectWithValue }) => {
+  async (
+    userData: {
+      firstName?: string;
+      lastName?: string;
+      name?: string;
+      email: string;
+      password: string;
+      confirmPassword?: string;
+      workspaceName?: string;
+      organizationName?: string;
+      goal?: string;
+      useCase?: string;
+      inviteToken?: string;
+    },
+    { rejectWithValue }
+  ) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return rejectWithValue(data.message || 'Registration failed');
+      const response = await api.post('/api/auth/signup', userData);
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Registration failed');
       }
-      return data.data;
-    } catch (err: any) {
-      return rejectWithValue(err.message || 'Network error');
+      return response.data.data;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Network error'));
     }
   }
 );
@@ -88,18 +91,13 @@ export const googleLogin = createAsyncThunk(
   'auth/googleLogin',
   async (credential: string, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return rejectWithValue(data.message || 'Google authentication failed');
+      const response = await api.post('/api/auth/google', { credential });
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Google authentication failed');
       }
-      return data.data; // { user, accessToken, refreshToken }
-    } catch (err: any) {
-      return rejectWithValue(err.message || 'Network error during Google authentication');
+      return response.data.data;
+    } catch (error: unknown) {
+      return rejectWithValue(apiErrorMessage(error, 'Network error during Google authentication'));
     }
   }
 );
@@ -120,16 +118,17 @@ export const authSlice = createSlice({
         localStorage.setItem('jira_user', JSON.stringify(action.payload.user));
       }
     },
+    updateAccessToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+      state.isAuthenticated = true;
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       state.status = 'idle';
       state.error = null;
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('jira_token');
-        localStorage.removeItem('jira_user');
-      }
+      clearStoredAuth();
     },
     clearError: (state) => {
       state.error = null;
@@ -140,6 +139,10 @@ export const authSlice = createSlice({
     builder.addCase(loginUser.pending, (state) => {
       state.status = 'loading';
       state.error = null;
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      clearStoredAuth();
     });
     builder.addCase(loginUser.fulfilled, (state, action) => {
       state.status = 'succeeded';
@@ -160,6 +163,10 @@ export const authSlice = createSlice({
     builder.addCase(registerUser.pending, (state) => {
       state.status = 'loading';
       state.error = null;
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      clearStoredAuth();
     });
     builder.addCase(registerUser.fulfilled, (state, action) => {
       state.status = 'succeeded';
@@ -180,6 +187,10 @@ export const authSlice = createSlice({
     builder.addCase(googleLogin.pending, (state) => {
       state.status = 'loading';
       state.error = null;
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      clearStoredAuth();
     });
     builder.addCase(googleLogin.fulfilled, (state, action) => {
       state.status = 'succeeded';
@@ -198,6 +209,5 @@ export const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, logout, clearError } = authSlice.actions;
+export const { setCredentials, updateAccessToken, logout, clearError } = authSlice.actions;
 export default authSlice.reducer;
-
